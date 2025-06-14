@@ -33,19 +33,8 @@ const FindDoctor = () => {
 
   return (
     <Layout>
-      <div 
-        className="min-h-screen relative"
-        style={{
-          backgroundImage: `url('/lovable-uploads/d1817da1-2632-445a-9b66-06af157c0005.png')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        {/* White gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/30 to-white"></div>
-        
-        <div className="relative z-10 py-12">
+      <div className="min-h-screen">
+        <div className="py-12">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -63,11 +52,11 @@ const FindDoctor = () => {
                   placeholder="Search by name or specialty..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white/90 backdrop-blur-sm"
+                  className="pl-10"
                 />
               </div>
               <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
-                <SelectTrigger className="w-full md:w-48 bg-white/90 backdrop-blur-sm">
+                <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="All Specialties" />
                 </SelectTrigger>
                 <SelectContent>
@@ -89,7 +78,7 @@ const FindDoctor = () => {
                   animate={{ opacity: 1, y: 0 }}
                   whileHover={{ scale: 1.02 }}
                 >
-                  <Card className="shadow-lg hover:shadow-xl transition-shadow bg-white/95 backdrop-blur-sm">
+                  <Card className="shadow-lg hover:shadow-xl transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex items-center space-x-4">
                         <img
@@ -120,7 +109,7 @@ const FindDoctor = () => {
 
             {filteredDoctors.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-lg text-gray-600 bg-white/80 backdrop-blur-sm rounded-lg p-6 inline-block">
+                <p className="text-lg text-gray-600">
                   No doctors found matching your criteria.
                 </p>
               </div>
