@@ -13,6 +13,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Calendar, Clock, User, Stethoscope, CheckCircle } from 'lucide-react';
 
+interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+  image: string;
+  rating: number;
+  experience: number;
+}
+
 const BookAppointment = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -26,8 +35,8 @@ const BookAppointment = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const doctors = JSON.parse(localStorage.getItem('doctors') || '[]');
-  const specialties = [...new Set(doctors.map((doc: any) => doc.specialty))];
+  const doctors: Doctor[] = JSON.parse(localStorage.getItem('doctors') || '[]');
+  const specialties = [...new Set(doctors.map((doc) => doc.specialty))];
 
   const timeSlots = [
     '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
@@ -35,7 +44,7 @@ const BookAppointment = () => {
   ];
 
   const handleDoctorSelect = (doctorId: string) => {
-    const doctor = doctors.find((doc: any) => doc.id === doctorId);
+    const doctor = doctors.find((doc) => doc.id === doctorId);
     setFormData({
       ...formData,
       doctorId,
@@ -69,7 +78,7 @@ const BookAppointment = () => {
   };
 
   const filteredDoctors = formData.specialty 
-    ? doctors.filter((doc: any) => doc.specialty === formData.specialty)
+    ? doctors.filter((doc) => doc.specialty === formData.specialty)
     : doctors;
 
   return (
@@ -152,7 +161,7 @@ const BookAppointment = () => {
                     >
                       <Label>Available Doctors</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                        {filteredDoctors.map((doctor: any) => (
+                        {filteredDoctors.map((doctor) => (
                           <motion.div
                             key={doctor.id}
                             whileHover={{ scale: 1.02 }}
