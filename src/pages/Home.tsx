@@ -44,7 +44,18 @@ const Home = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 via-white to-teal-50 overflow-hidden">
+      <section 
+        className="relative min-h-screen flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundImage: `url('/lovable-uploads/d1817da1-2632-445a-9b66-06af157c0005.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        {/* White gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/30 to-white"></div>
+
         {/* Animated Background Elements */}
         <div className="absolute inset-0">
           <motion.div
@@ -113,7 +124,7 @@ const Home = () => {
               <span className="text-teal-600">{t('hero.title').split(',')[1]}</span>
             </h1>
             
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed bg-white/80 backdrop-blur-sm rounded-lg p-4">
               {t('hero.subtitle')}
             </p>
           </motion.div>
@@ -137,7 +148,7 @@ const Home = () => {
               <Button 
                 variant="outline"
                 size="lg"
-                className="border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                className="border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 bg-white/90 backdrop-blur-sm"
               >
                 <Stethoscope className="mr-2" size={20} />
                 Health Guidance
