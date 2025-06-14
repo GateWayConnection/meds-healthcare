@@ -9,8 +9,10 @@ import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Contact = () => {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -20,7 +22,7 @@ const Contact = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Message sent successfully! We will get back to you soon.');
+    toast.success(t('contact.successMessage'));
     setFormData({ name: '', email: '', phone: '', message: '' });
   };
 
@@ -33,19 +35,19 @@ const Contact = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
-            <p className="text-xl text-gray-600">Get in touch with our healthcare team</p>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">{t('contact.title')}</h1>
+            <p className="text-xl text-gray-600">{t('contact.subtitle')}</p>
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle>Send us a Message</CardTitle>
+                <CardTitle>{t('contact.sendMessage')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="name">{t('contact.fullName')}</Label>
                     <Input
                       id="name"
                       value={formData.name}
@@ -54,7 +56,7 @@ const Contact = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t('contact.email')}</Label>
                     <Input
                       id="email"
                       type="email"
@@ -64,7 +66,7 @@ const Contact = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone">{t('contact.phone')}</Label>
                     <Input
                       id="phone"
                       value={formData.phone}
@@ -72,7 +74,7 @@ const Contact = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="message">Message</Label>
+                    <Label htmlFor="message">{t('contact.message')}</Label>
                     <Textarea
                       id="message"
                       value={formData.message}
@@ -81,7 +83,7 @@ const Contact = () => {
                     />
                   </div>
                   <Button type="submit" className="w-full bg-rose-600 hover:bg-rose-700">
-                    Send Message
+                    {t('contact.sendBtn')}
                   </Button>
                 </form>
               </CardContent>
@@ -92,12 +94,12 @@ const Contact = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Phone className="w-5 h-5 mr-2 text-rose-600" />
-                    Phone
+                    {t('contact.phoneTitle')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-600">+249 123 456 789</p>
-                  <p className="text-sm text-gray-500">24/7 Emergency Line</p>
+                  <p className="text-sm text-gray-500">{t('contact.emergencyLine')}</p>
                 </CardContent>
               </Card>
 
@@ -105,7 +107,7 @@ const Contact = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Mail className="w-5 h-5 mr-2 text-rose-600" />
-                    Email
+                    {t('contact.emailTitle')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -117,11 +119,11 @@ const Contact = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <MapPin className="w-5 h-5 mr-2 text-rose-600" />
-                    Location
+                    {t('contact.location')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600">Khartoum, Sudan</p>
+                  <p className="text-gray-600">{t('contact.locationText')}</p>
                 </CardContent>
               </Card>
 
@@ -129,13 +131,13 @@ const Contact = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Clock className="w-5 h-5 mr-2 text-rose-600" />
-                    Hours
+                    {t('contact.hours')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600">Mon-Fri: 8:00 AM - 8:00 PM</p>
-                  <p className="text-gray-600">Sat-Sun: 9:00 AM - 6:00 PM</p>
-                  <p className="text-sm text-gray-500">Emergency services 24/7</p>
+                  <p className="text-gray-600">{t('contact.weekdayHours')}</p>
+                  <p className="text-gray-600">{t('contact.weekendHours')}</p>
+                  <p className="text-sm text-gray-500">{t('contact.emergencyNote')}</p>
                 </CardContent>
               </Card>
             </div>

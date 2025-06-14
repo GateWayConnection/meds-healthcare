@@ -14,31 +14,31 @@ const Home = () => {
   const features = [
     {
       icon: Calendar,
-      title: 'Easy Appointment Booking',
-      description: 'Book appointments with your preferred doctors quickly and easily'
+      title: t('home.feature1Title'),
+      description: t('home.feature1Desc')
     },
     {
       icon: Users,
-      title: 'Expert Medical Team',
-      description: 'Qualified doctors and healthcare professionals at your service'
+      title: t('home.feature2Title'),
+      description: t('home.feature2Desc')
     },
     {
       icon: Clock,
-      title: '24/7 Emergency Care',
-      description: 'Round-the-clock emergency medical services when you need them most'
+      title: t('home.feature3Title'),
+      description: t('home.feature3Desc')
     },
     {
       icon: Shield,
-      title: 'Safe & Secure',
-      description: 'Your health data is protected with the highest security standards'
+      title: t('home.feature4Title'),
+      description: t('home.feature4Desc')
     }
   ];
 
   const stats = [
-    { number: '50+', label: 'Expert Doctors' },
-    { number: '1000+', label: 'Happy Patients' },
-    { number: '15+', label: 'Medical Departments' },
-    { number: '24/7', label: 'Emergency Support' }
+    { number: t('home.stat1'), label: t('home.stat1Label') },
+    { number: t('home.stat2'), label: t('home.stat2Label') },
+    { number: t('home.stat3'), label: t('home.stat3Label') },
+    { number: t('home.stat4'), label: t('home.stat4Label') }
   ];
 
   return (
@@ -151,7 +151,7 @@ const Home = () => {
                 className="border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 bg-white/90 backdrop-blur-sm"
               >
                 <Stethoscope className="mr-2" size={20} />
-                Health Guidance
+                {t('home.healthGuidance')}
               </Button>
             </Link>
           </motion.div>
@@ -194,10 +194,10 @@ const Home = () => {
             className="text-center mb-16"
           >
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose <span className="text-rose-600">MEDS Healthcare</span>?
+              {t('home.whyChoose')} <span className="text-rose-600">{t('home.medsHealthcare')}</span>?
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              We provide comprehensive healthcare services with cutting-edge technology and compassionate care
+              {t('home.whyChooseSubtitle')}
             </p>
           </motion.div>
 
@@ -251,10 +251,10 @@ const Home = () => {
             className="text-white"
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Ready to Take Care of Your Health?
+              {t('home.ctaTitle')}
             </h2>
             <p className="text-xl mb-8 opacity-90">
-              Join thousands of patients who trust MEDS Healthcare for their medical needs
+              {t('home.ctaSubtitle')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/register">
@@ -262,7 +262,7 @@ const Home = () => {
                   size="lg"
                   className="bg-white text-teal-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                 >
-                  Get Started Today
+                  {t('home.getStarted')}
                 </Button>
               </Link>
               <Link to="/contact">
@@ -271,7 +271,7 @@ const Home = () => {
                   size="lg"
                   className="border-white text-white hover:bg-white hover:text-teal-600 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                 >
-                  Contact Us
+                  {t('home.contactUs')}
                 </Button>
               </Link>
             </div>

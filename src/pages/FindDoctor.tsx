@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
 import { Search, Star, MapPin } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Doctor {
   id: string;
@@ -18,6 +19,7 @@ interface Doctor {
 }
 
 const FindDoctor = () => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
 
@@ -41,15 +43,15 @@ const FindDoctor = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-center mb-8"
             >
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">Find a Doctor</h1>
-              <p className="text-xl text-gray-600">Search for healthcare professionals</p>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">{t('findDoctor.title')}</h1>
+              <p className="text-xl text-gray-600">{t('findDoctor.subtitle')}</p>
             </motion.div>
 
             <div className="flex flex-col md:flex-row gap-4 mb-8">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search by name or specialty..."
+                  placeholder={t('findDoctor.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -57,10 +59,10 @@ const FindDoctor = () => {
               </div>
               <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
                 <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="All Specialties" />
+                  <SelectValue placeholder={t('findDoctor.allSpecialties')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Specialties</SelectItem>
+                  <SelectItem value="all">{t('findDoctor.allSpecialties')}</SelectItem>
                   {specialties.map((specialty) => (
                     <SelectItem key={specialty} value={specialty}>
                       {specialty}
@@ -93,13 +95,13 @@ const FindDoctor = () => {
                             <Star className="w-4 h-4 text-yellow-500 fill-current" />
                             <span className="text-sm text-gray-600 ml-1">{doctor.rating}</span>
                             <span className="text-sm text-gray-500 ml-2">
-                              {doctor.experience} years exp.
+                              {doctor.experience} {t('findDoctor.yearsExp')}
                             </span>
                           </div>
                         </div>
                       </div>
                       <Button className="w-full mt-4 bg-rose-600 hover:bg-rose-700">
-                        Book Appointment
+                        {t('findDoctor.bookAppointment')}
                       </Button>
                     </CardContent>
                   </Card>
@@ -110,7 +112,7 @@ const FindDoctor = () => {
             {filteredDoctors.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-lg text-gray-600">
-                  No doctors found matching your criteria.
+                  {t('findDoctor.noResults')}
                 </p>
               </div>
             )}
