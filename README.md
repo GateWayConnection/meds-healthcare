@@ -1,2 +1,2 @@
 ## med
-[live preview](https://github.com/GateWayConnection/HospitalProject_med.git)
+[live preview]( https://med-flax.vercel.app/)
