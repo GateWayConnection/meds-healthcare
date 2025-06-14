@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Users, Clock, Shield, Heart, Stethoscope } from 'lucide-react';
 
-const Index = () => {
+const Home = () => {
   const { t } = useLanguage();
 
   const features = [
@@ -271,4 +271,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Home;
