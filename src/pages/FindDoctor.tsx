@@ -8,14 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { motion } from 'framer-motion';
 import { Search, Star, MapPin } from 'lucide-react';
 
+interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+  rating: number;
+  experience: number;
+  image: string;
+}
+
 const FindDoctor = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
 
-  const doctors = JSON.parse(localStorage.getItem('doctors') || '[]');
-  const specialties = [...new Set(doctors.map((doc: any) => doc.specialty))];
+  const doctors: Doctor[] = JSON.parse(localStorage.getItem('doctors') || '[]');
+  const specialties = [...new Set(doctors.map((doc) => doc.specialty))];
 
-  const filteredDoctors = doctors.filter((doctor: any) => {
+  const filteredDoctors = doctors.filter((doctor) => {
     const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSpecialty = !selectedSpecialty || doctor.specialty === selectedSpecialty;
@@ -61,7 +70,7 @@ const FindDoctor = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDoctors.map((doctor: any) => (
+            {filteredDoctors.map((doctor) => (
               <motion.div
                 key={doctor.id}
                 initial={{ opacity: 0, y: 20 }}
