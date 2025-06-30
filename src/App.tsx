@@ -18,6 +18,11 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
+// New Feature Pages
+import Chat from "./pages/Chat";
+import Academics from "./pages/Academics";
+import Blog from "./pages/Blog";
+
 // Patient Pages
 import PatientDashboard from "./pages/patient/PatientDashboard";
 import MyAppointments from "./pages/patient/MyAppointments";
@@ -55,6 +60,11 @@ const App = () => (
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                
+                {/* New Feature Routes */}
+                <Route path="/chat" element={<Chat />} />
+                <Route path="/academics" element={<Academics />} />
+                <Route path="/blog" element={<Blog />} />
                 
                 {/* Patient Routes */}
                 <Route path="/patient/dashboard" element={<PatientDashboard />} />

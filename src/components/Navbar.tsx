@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Globe, User, LogOut } from 'lucide-react';
+import { Menu, X, Globe, User, LogOut, MessageCircle, BookOpen, FileText } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -47,7 +47,7 @@ const Navbar = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-6">
             <Link to="/" className="text-gray-700 hover:text-rose-600 transition-colors">
               {t('nav.home')}
             </Link>
@@ -60,6 +60,25 @@ const Navbar = () => {
             <Link to="/book-appointment" className="text-gray-700 hover:text-rose-600 transition-colors">
               {t('nav.bookAppointment')}
             </Link>
+            
+            {/* New Navigation Items */}
+            {user && (
+              <>
+                <Link to="/chat" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors">
+                  <MessageCircle size={16} />
+                  <span>Chat</span>
+                </Link>
+                <Link to="/academics" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors">
+                  <BookOpen size={16} />
+                  <span>Academics</span>
+                </Link>
+                <Link to="/blog" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors">
+                  <FileText size={16} />
+                  <span>Blog</span>
+                </Link>
+              </>
+            )}
+            
             <Link to="/health-navigation" className="text-gray-700 hover:text-rose-600 transition-colors">
               {t('nav.healthNav')}
             </Link>
@@ -150,6 +169,21 @@ const Navbar = () => {
               <Link to="/book-appointment" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
                 {t('nav.bookAppointment')}
               </Link>
+              
+              {user && (
+                <>
+                  <Link to="/chat" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
+                    Chat
+                  </Link>
+                  <Link to="/academics" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
+                    Academics
+                  </Link>
+                  <Link to="/blog" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
+                    Blog
+                  </Link>
+                </>
+              )}
+              
               <Link to="/health-navigation" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
                 {t('nav.healthNav')}
               </Link>
