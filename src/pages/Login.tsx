@@ -9,15 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { LogIn, User, Lock, UserCheck } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    role: ''
+    password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -27,7 +25,7 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email || !formData.password || !formData.role) {
+    if (!formData.email || !formData.password) {
       toast.error(t('login.fillAllFields'));
       return;
     }
@@ -35,12 +33,20 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      const success = login(formData.email, formData.password, formData.role);
+      // Determine role based on email domain or default to patient
+      let role = 'patient';
+      if (formData.email.includes('doctor@') || formData.email.includes('dr.')) {
+        role = 'doctor';
+      } else if (formData.email.includes('admin@')) {
+        role = 'admin';
+      }
+
+      const success = login(formData.email, formData.password, role);
       
       if (success) {
         toast.success(t('login.loginSuccessful'));
         // Redirect based on role
-        switch (formData.role) {
+        switch (role) {
           case 'patient':
             navigate('/patient/dashboard');
             break;
@@ -103,41 +109,6 @@ const Login = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <Label htmlFor="role" className="text-sm font-medium text-gray-700">
-                    {t('login.loginAs')}
-                  </Label>
-                  <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder={t('login.selectRole')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="patient">
-                        <div className="flex items-center">
-                          <User className="w-4 h-4 mr-2" />
-                          {t('login.patient')}
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="doctor">
-                        <div className="flex items-center">
-                          <UserCheck className="w-4 h-4 mr-2" />
-                          {t('login.doctor')}
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="admin">
-                        <div className="flex items-center">
-                          <Lock className="w-4 h-4 mr-2" />
-                          {t('login.admin')}
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
                   <Label htmlFor="email" className="text-sm font-medium text-gray-700">
                     {t('login.emailAddress')}
                   </Label>
@@ -155,7 +126,7 @@ const Login = () => {
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
+                  transition={{ delay: 0.2 }}
                 >
                   <Label htmlFor="password" className="text-sm font-medium text-gray-700">
                     {t('login.password')}
@@ -174,7 +145,7 @@ const Login = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
+                  transition={{ delay: 0.3 }}
                 >
                   <Button
                     type="submit"
@@ -197,7 +168,7 @@ const Login = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
+                transition={{ delay: 0.4 }}
                 className="mt-6 text-center"
               >
                 <p className="text-sm text-gray-600">
@@ -217,7 +188,7 @@ const Login = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.5 }}
             className="mt-6 p-4 bg-white/60 backdrop-blur-sm rounded-lg border"
           >
             <h3 className="text-sm font-semibold text-gray-700 mb-2">{t('login.demoCredentials')}</h3>
