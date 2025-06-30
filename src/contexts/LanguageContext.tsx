@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState } from 'react';
 
 interface LanguageContextType {
@@ -143,7 +142,60 @@ const translations = {
     'home.ctaSubtitle': 'Join thousands of patients who trust MEDS Healthcare for their medical needs',
     'home.getStarted': 'Get Started Today',
     'home.contactUs': 'Contact Us',
-    'home.healthGuidance': 'Health Guidance'
+    'home.healthGuidance': 'Health Guidance',
+    
+    // Navigation
+    'nav.academics': 'Academics',
+    'nav.blog': 'Blog',
+    'nav.chat': 'Chat',
+    'nav.dashboard': 'Dashboard',
+    'nav.logout': 'Logout',
+    'nav.register': 'Register',
+    
+    // Common
+    'common.back': 'Back',
+    'common.download': 'Download',
+    
+    // Academics
+    'academics.title': 'Academic Portal',
+    'academics.subtitle': 'Access comprehensive medical education resources, courses, and learning materials.',
+    'academics.bodyHealth': 'Body Health & Anatomy',
+    'academics.bodyHealthDesc': 'Learn about human anatomy and body systems',
+    'academics.generalMedicine': 'General Medicine',
+    'academics.generalMedicineDesc': 'Fundamental medical knowledge and practices',
+    'academics.anatomyBasics': 'Anatomy Basics',
+    'academics.anatomyBasicsDesc': 'Introduction to human anatomy and physiology',
+    'academics.firstAid': 'First Aid Essentials',
+    'academics.firstAidDesc': 'Essential first aid techniques and emergency response',
+    'academics.courseMaterials': 'Course Materials',
+    'academics.materials': 'materials',
+    'academics.courses': 'courses',
+    
+    // Blog
+    'blog.title': 'Medical Blog',
+    'blog.subtitle': 'Share knowledge, experiences, and insights with the medical community.',
+    'blog.writePost': 'Write New Post',
+    'blog.readMore': 'Read More',
+    'blog.categories': 'Categories',
+    'blog.topAuthors': 'Top Authors',
+    'blog.recentActivity': 'Recent Activity',
+    'blog.posts': 'posts',
+    'blog.post1Title': 'Understanding Hypertension Management',
+    'blog.post1Excerpt': 'A comprehensive guide to managing high blood pressure in clinical practice.',
+    'blog.post2Title': 'Mental Health Awareness in Sudan',
+    'blog.post2Excerpt': 'Breaking the stigma around mental health and promoting wellness.',
+    'blog.post3Title': 'My Journey with Diabetes',
+    'blog.post3Excerpt': 'A patient\'s perspective on living with and managing diabetes.',
+    'blog.generalMedicine': 'General Medicine',
+    'blog.patientStories': 'Patient Stories',
+    'blog.healthTips': 'Health Tips',
+    'blog.medicalResearch': 'Medical Research',
+    'blog.mentalHealth': 'Mental Health',
+    'blog.newComment': 'New comment',
+    'blog.newPost': 'New post published',
+    'blog.on': 'on',
+    'blog.hoursAgo': 'hours ago',
+    'blog.dayAgo': 'day ago'
   },
   ar: {
     'nav.home': 'الرئيسية',
@@ -280,7 +332,60 @@ const translations = {
     'home.ctaSubtitle': 'انضم إلى آلاف المرضى الذين يثقون في MEDS للرعاية الصحية لاحتياجاتهم الطبية',
     'home.getStarted': 'ابدأ اليوم',
     'home.contactUs': 'اتصل بنا',
-    'home.healthGuidance': 'التوجيه الصحي'
+    'home.healthGuidance': 'التوجيه الصحي',
+    
+    // Navigation
+    'nav.academics': 'الأكاديمية',
+    'nav.blog': 'المدونة',
+    'nav.chat': 'المحادثة',
+    'nav.dashboard': 'لوحة التحكم',
+    'nav.logout': 'تسجيل الخروج',
+    'nav.register': 'التسجيل',
+    
+    // Common
+    'common.back': 'رجوع',
+    'common.download': 'تحميل',
+    
+    // Academics
+    'academics.title': 'البوابة الأكاديمية',
+    'academics.subtitle': 'الوصول إلى موارد التعليم الطبي الشاملة والدورات والمواد التعليمية.',
+    'academics.bodyHealth': 'صحة الجسم والتشريح',
+    'academics.bodyHealthDesc': 'تعلم عن التشريح البشري وأنظمة الجسم',
+    'academics.generalMedicine': 'الطب العام',
+    'academics.generalMedicineDesc': 'المعرفة والممارسات الطبية الأساسية',
+    'academics.anatomyBasics': 'أساسيات التشريح',
+    'academics.anatomyBasicsDesc': 'مقدمة في التشريح البشري وعلم وظائف الأعضاء',
+    'academics.firstAid': 'أساسيات الإسعافات الأولية',
+    'academics.firstAidDesc': 'تقنيات الإسعافات الأولية الأساسية والاستجابة للطوارئ',
+    'academics.courseMaterials': 'مواد الدورة',
+    'academics.materials': 'مواد',
+    'academics.courses': 'دورات',
+    
+    // Blog
+    'blog.title': 'المدونة الطبية',
+    'blog.subtitle': 'شارك المعرفة والخبرات والأفكار مع المجتمع الطبي.',
+    'blog.writePost': 'كتابة منشور جديد',
+    'blog.readMore': 'اقرأ المزيد',
+    'blog.categories': 'الفئات',
+    'blog.topAuthors': 'أفضل الكتاب',
+    'blog.recentActivity': 'النشاط الأخير',
+    'blog.posts': 'منشورات',
+    'blog.post1Title': 'فهم إدارة ارتفاع ضغط الدم',
+    'blog.post1Excerpt': 'دليل شامل لإدارة ارتفاع ضغط الدم في الممارسة السريرية.',
+    'blog.post2Title': 'الوعي بالصحة النفسية في السودان',
+    'blog.post2Excerpt': 'كسر الوصمة حول الصحة النفسية وتعزيز العافية.',
+    'blog.post3Title': 'رحلتي مع السكري',
+    'blog.post3Excerpt': 'منظور مريض حول العيش مع مرض السكري وإدارته.',
+    'blog.generalMedicine': 'الطب العام',
+    'blog.patientStories': 'قصص المرضى',
+    'blog.healthTips': 'نصائح صحية',
+    'blog.medicalResearch': 'البحث الطبي',
+    'blog.mentalHealth': 'الصحة النفسية',
+    'blog.newComment': 'تعليق جديد',
+    'blog.newPost': 'منشور جديد',
+    'blog.on': 'على',
+    'blog.hoursAgo': 'ساعات مضت',
+    'blog.dayAgo': 'يوم مضى'
   }
 };
 

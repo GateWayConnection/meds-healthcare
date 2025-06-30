@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Globe, User, LogOut, MessageCircle, BookOpen, FileText } from 'lucide-react';
+import { Menu, X, Globe, User, LogOut, MessageCircle } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +46,7 @@ const Navbar = () => {
             <span className="text-xl font-bold text-rose-600">MEDS Healthcare</span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Simplified */}
           <div className="hidden md:flex items-center space-x-6">
             <Link to="/" className="text-gray-700 hover:text-rose-600 transition-colors">
               {t('nav.home')}
@@ -54,37 +54,17 @@ const Navbar = () => {
             <Link to="/about" className="text-gray-700 hover:text-rose-600 transition-colors">
               {t('nav.about')}
             </Link>
-            <Link to="/find-doctor" className="text-gray-700 hover:text-rose-600 transition-colors">
-              {t('nav.findDoctor')}
-            </Link>
-            <Link to="/book-appointment" className="text-gray-700 hover:text-rose-600 transition-colors">
-              {t('nav.bookAppointment')}
-            </Link>
-            
-            {/* New Navigation Items */}
-            {user && (
-              <>
-                <Link to="/chat" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors">
-                  <MessageCircle size={16} />
-                  <span>Chat</span>
-                </Link>
-                <Link to="/academics" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors">
-                  <BookOpen size={16} />
-                  <span>Academics</span>
-                </Link>
-                <Link to="/blog" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors">
-                  <FileText size={16} />
-                  <span>Blog</span>
-                </Link>
-              </>
-            )}
-            
-            <Link to="/health-navigation" className="text-gray-700 hover:text-rose-600 transition-colors">
-              {t('nav.healthNav')}
-            </Link>
             <Link to="/contact" className="text-gray-700 hover:text-rose-600 transition-colors">
               {t('nav.contact')}
             </Link>
+            
+            {/* Chat for logged in users */}
+            {user && (
+              <Link to="/chat" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors">
+                <MessageCircle size={16} />
+                <span>{t('nav.chat')}</span>
+              </Link>
+            )}
           </div>
 
           {/* Right side actions */}
@@ -127,7 +107,7 @@ const Navbar = () => {
                 </Link>
                 <Link to="/register">
                   <Button className="bg-rose-600 hover:bg-rose-700 text-white">
-                    Register
+                    {t('nav.register')}
                   </Button>
                 </Link>
               </div>
@@ -163,44 +143,26 @@ const Navbar = () => {
               <Link to="/about" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
                 {t('nav.about')}
               </Link>
-              <Link to="/find-doctor" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
-                {t('nav.findDoctor')}
-              </Link>
-              <Link to="/book-appointment" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
-                {t('nav.bookAppointment')}
-              </Link>
-              
-              {user && (
-                <>
-                  <Link to="/chat" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
-                    Chat
-                  </Link>
-                  <Link to="/academics" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
-                    Academics
-                  </Link>
-                  <Link to="/blog" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
-                    Blog
-                  </Link>
-                </>
-              )}
-              
-              <Link to="/health-navigation" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
-                {t('nav.healthNav')}
-              </Link>
               <Link to="/contact" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
                 {t('nav.contact')}
               </Link>
               
+              {user && (
+                <Link to="/chat" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
+                  {t('nav.chat')}
+                </Link>
+              )}
+              
               {user ? (
                 <div className="border-t pt-2">
                   <Link to={getDashboardRoute()} className="block px-3 py-2 text-gray-700">
-                    Dashboard
+                    {t('nav.dashboard')}
                   </Link>
                   <button 
                     onClick={handleLogout}
                     className="block w-full text-left px-3 py-2 text-gray-700"
                   >
-                    Logout
+                    {t('nav.logout')}
                   </button>
                 </div>
               ) : (
@@ -209,7 +171,7 @@ const Navbar = () => {
                     {t('nav.login')}
                   </Link>
                   <Link to="/register" className="block px-3 py-2 text-rose-600">
-                    Register
+                    {t('nav.register')}
                   </Link>
                 </div>
               )}
