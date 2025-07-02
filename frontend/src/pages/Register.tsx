@@ -54,16 +54,17 @@ const Register = () => {
     setIsLoading(true);
     
     try {
-      const success = register(formData);
+      const success = await register(formData);
       
       if (success) {
         toast.success(t('register.registrationSuccessful'));
+        if (formData.role === 'doctor') {
+          toast.info('Your doctor account requires verification. You will be contacted within 24-48 hours.');
+        }
         navigate('/login');
-      } else {
-        toast.error(t('register.emailExists'));
       }
-    } catch (error) {
-      toast.error(t('register.registrationError'));
+    } catch (error: any) {
+      toast.error(error.message || t('register.registrationError'));
     } finally {
       setIsLoading(false);
     }

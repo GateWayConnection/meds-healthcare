@@ -14,8 +14,9 @@ import { LogIn } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    identifier: '', // Changed from 'email' to 'identifier' to support email/phone
+    password: '',
+    role: '' // Allow user to select role
   });
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -25,7 +26,7 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email || !formData.password) {
+    if (!formData.identifier || !formData.password) {
       toast.error(t('login.fillAllFields'));
       return;
     }
@@ -33,37 +34,34 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      // Determine role based on email domain or default to patient
-      let role = 'patient';
-      if (formData.email.includes('doctor@') || formData.email.includes('dr.')) {
-        role = 'doctor';
-      } else if (formData.email.includes('admin@')) {
-        role = 'admin';
-      }
-
-      const success = login(formData.email, formData.password, role);
+      // Use the new async login method
+      const success = await login(formData.identifier, formData.password, formData.role || undefined);
       
       if (success) {
         toast.success(t('login.loginSuccessful'));
-        // Redirect based on role
-        switch (role) {
-          case 'patient':
-            navigate('/patient/dashboard');
-            break;
-          case 'doctor':
-            navigate('/doctor/dashboard');
-            break;
-          case 'admin':
-            navigate('/admin/dashboard');
-            break;
-          default:
-            navigate('/');
-        }
-      } else {
-        toast.error(t('login.invalidCredentials'));
+        
+        // Determine redirect based on role (will be set after successful login)
+        // We'll get the user's role from the context after login
+        setTimeout(() => {
+          // The role will be available in the user object now
+          const role = formData.role || 'patient'; // fallback
+          switch (role) {
+            case 'patient':
+              navigate('/patient/dashboard');
+              break;
+            case 'doctor':
+              navigate('/doctor/dashboard');
+              break;
+            case 'admin':
+              navigate('/admin/dashboard');
+              break;
+            default:
+              navigate('/');
+          }
+        }, 100);
       }
-    } catch (error) {
-      toast.error(t('login.loginError'));
+    } catch (error: any) {
+      toast.error(error.message || t('login.loginError'));
     } finally {
       setIsLoading(false);
     }
@@ -109,16 +107,16 @@ const Login = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    {t('login.emailAddress')}
+                  <Label htmlFor="identifier" className="text-sm font-medium text-gray-700">
+                    {t('login.emailOrPhone')}
                   </Label>
                   <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    id="identifier"
+                    type="text"
+                    value={formData.identifier}
+                    onChange={(e) => setFormData({...formData, identifier: e.target.value})}
                     className="mt-1"
-                    placeholder={t('login.emailPlaceholder')}
+                    placeholder={t('login.identifierPlaceholder')}
                     required
                   />
                 </motion.div>
@@ -127,6 +125,27 @@ const Login = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 }}
+                >
+                  <Label htmlFor="role" className="text-sm font-medium text-gray-700">
+                    {t('login.loginAs')} (Optional)
+                  </Label>
+                  <select
+                    id="role"
+                    value={formData.role}
+                    onChange={(e) => setFormData({...formData, role: e.target.value})}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  >
+                    <option value="">{t('login.selectRole')}</option>
+                    <option value="patient">{t('login.patient')}</option>
+                    <option value="doctor">{t('login.doctor')}</option>
+                    <option value="admin">{t('login.admin')}</option>
+                  </select>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
                 >
                   <Label htmlFor="password" className="text-sm font-medium text-gray-700">
                     {t('login.password')}
@@ -145,7 +164,7 @@ const Login = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
+                  transition={{ delay: 0.4 }}
                 >
                   <Button
                     type="submit"
