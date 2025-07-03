@@ -3,52 +3,26 @@ import React from 'react';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Calendar, User, Clock } from 'lucide-react';
+import { Calendar, User, Clock, Eye, Heart } from 'lucide-react';
+import { useBlogs } from '../hooks/useBlogs';
 
 const Blog = () => {
-  const blogPosts = [
-    {
-      id: 1,
-      title: '10 Tips for Maintaining Good Health',
-      excerpt: 'Learn about essential habits that can help you maintain optimal health and wellness.',
-      author: 'Dr. Sarah Johnson',
-      date: '2024-01-15',
-      category: 'Wellness',
-      readTime: '5 min read',
-      image: '/placeholder.svg'
-    },
-    {
-      id: 2,
-      title: 'Understanding Mental Health in the Digital Age',
-      excerpt: 'Exploring the impact of technology on mental health and strategies for digital wellness.',
-      author: 'Dr. Ahmed Hassan',
-      date: '2024-01-12',
-      category: 'Mental Health',
-      readTime: '7 min read',
-      image: '/placeholder.svg'
-    },
-    {
-      id: 3,
-      title: 'The Importance of Regular Health Checkups',
-      excerpt: 'Why preventive care is crucial for early detection and treatment of health conditions.',
-      author: 'Dr. Maria Garcia',
-      date: '2024-01-10',
-      category: 'Preventive Care',
-      readTime: '4 min read',
-      image: '/placeholder.svg'
-    },
-    {
-      id: 4,
-      title: 'Nutrition Guidelines for a Healthy Lifestyle',
-      excerpt: 'Evidence-based nutrition recommendations for maintaining optimal health.',
-      author: 'Dr. Lisa Chen',
-      date: '2024-01-08',
-      category: 'Nutrition',
-      readTime: '6 min read',
-      image: '/placeholder.svg'
-    }
-  ];
+  const { blogs, loading } = useBlogs();
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading blog posts...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -67,19 +41,19 @@ const Blog = () => {
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {blogPosts.map((post, index) => (
+              {blogs.map((post, index) => (
                 <motion.div
-                  key={post.id}
+                  key={post._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
                   <Card className="shadow-lg hover:shadow-xl transition-shadow h-full cursor-pointer">
-                    <div className="aspect-video bg-gray-200 rounded-t-lg flex items-center justify-center">
+                    <div className="aspect-video bg-gray-200 rounded-t-lg overflow-hidden">
                       <img
                         src={post.image}
                         alt={post.title}
-                        className="w-full h-full object-cover rounded-t-lg"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                     <CardHeader>
@@ -94,8 +68,9 @@ const Blog = () => {
                         {post.title}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-600 mb-4 line-clamp-3">{post.excerpt}</p>
+                    <CardContent className="space-y-4">
+                      <p className="text-gray-600 line-clamp-3">{post.excerpt}</p>
+                      
                       <div className="flex items-center justify-between text-sm text-gray-500">
                         <div className="flex items-center">
                           <User className="w-4 h-4 mr-2" />
@@ -103,14 +78,51 @@ const Blog = () => {
                         </div>
                         <div className="flex items-center">
                           <Calendar className="w-4 h-4 mr-2" />
-                          {new Date(post.date).toLocaleDateString()}
+                          {new Date(post.createdAt).toLocaleDateString()}
                         </div>
                       </div>
+
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Eye className="w-4 h-4 mr-1" />
+                            {post.views}
+                          </div>
+                          <div className="flex items-center">
+                            <Heart className="w-4 h-4 mr-1" />
+                            {post.likes}
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline">
+                          Read More
+                        </Button>
+                      </div>
+
+                      {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-2">
+                          {post.tags.slice(0, 3).map((tag, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
               ))}
             </div>
+
+            {blogs.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <p className="text-gray-600 text-lg">No blog posts available at the moment.</p>
+                <p className="text-gray-500 mt-2">Check back later for new articles and insights.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

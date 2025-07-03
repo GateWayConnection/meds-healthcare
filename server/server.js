@@ -10,6 +10,8 @@ const statsRoutes = require('./routes/stats');
 const specialtyRoutes = require('./routes/specialties');
 const doctorRoutes = require('./routes/doctors');
 const appointmentRoutes = require('./routes/appointments');
+const courseRoutes = require('./routes/courses');
+const blogRoutes = require('./routes/blogs');
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +31,8 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/specialties', specialtyRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/blogs', blogRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

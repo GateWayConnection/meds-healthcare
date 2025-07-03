@@ -1,4 +1,3 @@
-
 class ApiService {
   private baseURL: string;
 
@@ -96,6 +95,60 @@ class ApiService {
 
   async cancelAppointment(id: string) {
     return this.delete(`/appointments/${id}`);
+  }
+
+  // Courses endpoints
+  async getCourses() {
+    return this.get('/courses');
+  }
+
+  async getAllCourses() {
+    return this.get('/courses/all');
+  }
+
+  async getCourse(id: string) {
+    return this.get(`/courses/${id}`);
+  }
+
+  async createCourse(data: any) {
+    return this.post('/courses', data);
+  }
+
+  async updateCourse(id: string, data: any) {
+    return this.put(`/courses/${id}`, data);
+  }
+
+  async deleteCourse(id: string) {
+    return this.delete(`/courses/${id}`);
+  }
+
+  // Blogs endpoints
+  async getBlogs() {
+    return this.get('/blogs');
+  }
+
+  async getAllBlogs() {
+    return this.get('/blogs/all');
+  }
+
+  async getMyBlogs() {
+    return this.get('/blogs/my');
+  }
+
+  async getBlog(id: string) {
+    return this.get(`/blogs/${id}`);
+  }
+
+  async createBlog(data: any) {
+    return this.post('/blogs', data);
+  }
+
+  async updateBlog(id: string, data: any) {
+    return this.put(`/blogs/${id}`, data);
+  }
+
+  async deleteBlog(id: string) {
+    return this.delete(`/blogs/${id}`);
   }
 
   private async request<T>(
