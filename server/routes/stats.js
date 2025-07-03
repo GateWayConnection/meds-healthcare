@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Stats = require('../models/Stats');
-const auth = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
 // GET /api/stats - Get current stats
 router.get('/', async (req, res) => {
@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
 });
 
 // PUT /api/stats - Update stats (admin only)
-router.put('/', auth, async (req, res) => {
+router.put('/', authenticate, async (req, res) => {
   try {
     // Check if user is admin
     if (req.user.role !== 'admin') {

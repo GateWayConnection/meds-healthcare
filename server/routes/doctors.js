@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Doctor = require('../models/Doctor');
 const Specialty = require('../models/Specialty');
-const auth = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
 // GET /api/doctors - Get all active doctors
 router.get('/', async (req, res) => {
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/doctors/all - Get all doctors (admin only)
-router.get('/all', auth, async (req, res) => {
+router.get('/all', authenticate, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin only.' });
@@ -61,7 +61,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/doctors - Create new doctor (admin only)
-router.post('/', auth, async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin only.' });
@@ -120,7 +120,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // PUT /api/doctors/:id - Update doctor (admin only)
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin only.' });
@@ -180,7 +180,7 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // DELETE /api/doctors/:id - Delete doctor (admin only)
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin only.' });

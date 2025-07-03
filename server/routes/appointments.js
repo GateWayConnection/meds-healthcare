@@ -3,15 +3,15 @@ const router = express.Router();
 const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
 const User = require('../models/User');
-const auth = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const nodemailer = require('nodemailer');
 
 // Email configuration
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'byiringirourban20@gmail.com',
-    pass: 'zljw hslg rxpb mqpu'
+    user: process.env.EMAIL_USER || 'byiringirourban20@gmail.com',
+    pass: process.env.EMAIL_PASS || 'zljw hslg rxpb mqpu'
   }
 });
 
@@ -60,7 +60,7 @@ const sendConfirmationEmail = async (appointment) => {
 };
 
 // GET /api/appointments - Get user's appointments
-router.get('/', auth, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     let query = {};
     
@@ -89,7 +89,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST /api/appointments - Create new appointment
-router.post('/', auth, async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { doctorId, appointmentDate, appointmentTime, notes } = req.body;
     
@@ -157,7 +157,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // PUT /api/appointments/:id - Update appointment
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) {
@@ -190,7 +190,7 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // DELETE /api/appointments/:id - Cancel appointment
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) {
