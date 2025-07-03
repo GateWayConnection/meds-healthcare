@@ -5,83 +5,6 @@ class ApiService {
     this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
-    
-    const token = localStorage.getItem('token');
-    
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        let errorMessage = `HTTP ${response.status}`;
-        
-        try {
-          const parsedError = JSON.parse(errorData);
-          errorMessage = parsedError.error || parsedError.message || errorMessage;
-        } catch {
-          errorMessage = errorData || errorMessage;
-        }
-        
-        console.error(`❌ API Error: ${options.method || 'GET'} ${url}`, errorMessage);
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      console.log(`✅ API Success: ${options.method || 'GET'} ${url}`);
-      return data;
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error(`❌ API Error: ${options.method || 'GET'} ${url}`, error);
-        
-        if (error.message.includes('Failed to fetch')) {
-          throw new Error('Network error. Please check your connection and try again.');
-        }
-        
-        throw error;
-      }
-      throw new Error('An unexpected error occurred');
-    }
-  }
-
-  // Generic methods
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
-  }
-
-  async post<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async put<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
-  }
-
   // Auth endpoints
   async login(credentials: { email: string; password: string }) {
     return this.post('/auth/login', credentials);
@@ -158,6 +81,10 @@ class ApiService {
     return this.get('/appointments');
   }
 
+  async getUserAppointments() {
+    return this.get('/appointments/user');
+  }
+
   async createAppointment(data: any) {
     return this.post('/appointments', data);
   }
@@ -168,6 +95,83 @@ class ApiService {
 
   async cancelAppointment(id: string) {
     return this.delete(`/appointments/${id}`);
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`;
+    
+    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+    
+    const token = localStorage.getItem('token');
+    
+    const config: RequestInit = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        let errorMessage = `HTTP ${response.status}`;
+        
+        try {
+          const parsedError = JSON.parse(errorData);
+          errorMessage = parsedError.error || parsedError.message || errorMessage;
+        } catch {
+          errorMessage = errorData || errorMessage;
+        }
+        
+        console.error(`❌ API Error: ${options.method || 'GET'} ${url}`, errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log(`✅ API Success: ${options.method || 'GET'} ${url}`);
+      return data;
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`❌ API Error: ${options.method || 'GET'} ${url}`, error);
+        
+        if (error.message.includes('Failed to fetch')) {
+          throw new Error('Network error. Please check your connection and try again.');
+        }
+        
+        throw error;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  }
+
+  // Generic methods
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  }
+
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
   }
 }
 

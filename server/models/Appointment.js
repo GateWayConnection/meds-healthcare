@@ -1,30 +1,29 @@
+
 const mongoose = require('mongoose');
 
 const appointmentSchema = new mongoose.Schema({
-  patientId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+  patientName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  patientEmail: {
+    type: String,
+    required: true,
+    lowercase: true
+  },
+  patientPhone: {
+    type: String,
     required: true
   },
   doctorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Doctor',
     required: true
-  },
-  patientName: {
-    type: String,
-    required: true
-  },
-  patientEmail: {
-    type: String,
-    required: true
-  },
-  doctorName: {
-    type: String,
-    required: true
-  },
-  specialty: {
-    type: String,
+  },  
+  specialtyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Specialty',
     required: true
   },
   appointmentDate: {
@@ -35,18 +34,14 @@ const appointmentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  notes: {
-    type: String,
-    default: ''
-  },
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'cancelled', 'completed'],
-    default: 'confirmed'
+    default: 'pending'
   },
-  emailSent: {
-    type: Boolean,
-    default: false
+  notes: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true

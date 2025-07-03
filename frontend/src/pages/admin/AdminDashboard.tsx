@@ -4,9 +4,17 @@ import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Users, Calendar, TrendingUp, Settings, UserCheck, FileText } from 'lucide-react';
+import { Users, Calendar, TrendingUp, Settings, UserCheck, FileText, Stethoscope, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useStats } from '../../hooks/useStats';
+import { useSpecialties } from '../../hooks/useSpecialties';
+import { useDoctors } from '../../hooks/useDoctors';
 
 const AdminDashboard = () => {
+  const { stats, loading: statsLoading } = useStats();
+  const { specialties } = useSpecialties();
+  const { doctors } = useDoctors();
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-rose-50 to-teal-50 py-12">
@@ -38,7 +46,9 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Doctors</p>
-                    <p className="text-2xl font-bold text-gray-900">89</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {statsLoading ? '...' : doctors.length}
+                    </p>
                   </div>
                   <UserCheck className="w-8 h-8 text-green-600" />
                 </div>
@@ -49,10 +59,12 @@ const AdminDashboard = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Appointments Today</p>
-                    <p className="text-2xl font-bold text-gray-900">342</p>
+                    <p className="text-sm font-medium text-gray-600">Specialties</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {specialties.length}
+                    </p>
                   </div>
-                  <Calendar className="w-8 h-8 text-rose-600" />
+                  <Stethoscope className="w-8 h-8 text-rose-600" />
                 </div>
               </CardContent>
             </Card>
@@ -61,8 +73,10 @@ const AdminDashboard = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Monthly Growth</p>
-                    <p className="text-2xl font-bold text-gray-900">12%</p>
+                    <p className="text-sm font-medium text-gray-600">Happy Patients</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {statsLoading ? '...' : `${stats?.happyPatients || 0}+`}
+                    </p>
                   </div>
                   <TrendingUp className="w-8 h-8 text-purple-600" />
                 </div>
@@ -100,22 +114,36 @@ const AdminDashboard = () => {
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Button className="w-full bg-rose-600 hover:bg-rose-700">
-                    <Users className="w-4 h-4 mr-2" />
-                    Manage Users
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Generate Reports
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <Settings className="w-4 h-4 mr-2" />
-                    System Settings
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    View All Appointments
-                  </Button>
+                  <Link to="/admin/users">
+                    <Button className="w-full bg-rose-600 hover:bg-rose-700">
+                      <Users className="w-4 h-4 mr-2" />
+                      Manage Users
+                    </Button>
+                  </Link>
+                  <Link to="/admin/specialties">
+                    <Button variant="outline" className="w-full">
+                      <Stethoscope className="w-4 h-4 mr-2" />
+                      Manage Specialties
+                    </Button>
+                  </Link>
+                  <Link to="/admin/doctors">
+                    <Button variant="outline" className="w-full">
+                      <User className="w-4 h-4 mr-2" />
+                      Manage Doctors
+                    </Button>
+                  </Link>
+                  <Link to="/admin/stats">
+                    <Button variant="outline" className="w-full">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Update Stats
+                    </Button>
+                  </Link>
+                  <Link to="/admin/reports">
+                    <Button variant="outline" className="w-full">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Generate Reports
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             </div>

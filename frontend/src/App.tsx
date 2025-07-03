@@ -37,6 +37,9 @@ import DoctorProfile from "./pages/doctor/DoctorProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminReports from "./pages/admin/AdminReports";
 import UserManager from "./pages/admin/UserManager";
+import SpecialtyManager from "./pages/admin/SpecialtyManager";
+import DoctorManager from "./pages/admin/DoctorManager";
+import StatsManager from "./pages/admin/StatsManager";
 
 import NotFound from "./pages/NotFound";
 
@@ -80,6 +83,9 @@ const App = () => (
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/reports" element={<AdminReports />} />
                 <Route path="/admin/users" element={<UserManager />} />
+                <Route path="/admin/specialties" element={<SpecialtyManager />} />
+                <Route path="/admin/doctors" element={<DoctorManager />} />
+                <Route path="/admin/stats" element={<StatsManager />} />
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>
