@@ -4,12 +4,14 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Layout from '../components/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useStats } from '../hooks/useStats';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Users, Clock, Shield, Heart, Stethoscope } from 'lucide-react';
 
 const Home = () => {
   const { t } = useLanguage();
+  const { stats, loading: statsLoading } = useStats();
 
   const features = [
     {
@@ -34,12 +36,23 @@ const Home = () => {
     }
   ];
 
-  const stats = [
-    { number: t('home.stat1'), label: t('home.stat1Label') },
-    { number: t('home.stat2'), label: t('home.stat2Label') },
-    { number: t('home.stat3'), label: t('home.stat3Label') },
-    { number: t('home.stat4'), label: t('home.stat4Label') }
-  ];
+  const statsData = React.useMemo(() => {
+    if (!stats) {
+      return [
+        { number: '50+', label: 'Expert Doctors' },
+        { number: '1000+', label: 'Happy Patients' },
+        { number: '15+', label: 'Medical Departments' },
+        { number: '24/7', label: 'Emergency Support' }
+      ];
+    }
+    
+    return [
+      { number: `${stats.expertDoctors}+`, label: 'Expert Doctors' },
+      { number: `${stats.happyPatients}+`, label: 'Happy Patients' },
+      { number: `${stats.medicalDepartments}+`, label: 'Medical Departments' },
+      { number: stats.emergencySupport, label: 'Emergency Support' }
+    ];
+  }, [stats]);
 
   return (
     <Layout>
@@ -162,7 +175,7 @@ const Home = () => {
       <section className="py-16 bg-gradient-to-r from-rose-600 to-teal-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
+            {statsData.map((stat, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, scale: 0.8 }}

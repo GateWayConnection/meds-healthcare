@@ -27,6 +27,10 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/stats', require('./routes/stats'));
+app.use('/api/specialties', require('./routes/specialties'));
+app.use('/api/doctors', require('./routes/doctors'));
+app.use('/api/appointments', require('./routes/appointments'));
 
 // Health check endpoint
 app.get('/', (req, res) => {

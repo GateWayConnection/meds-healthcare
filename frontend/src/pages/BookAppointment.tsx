@@ -3,6 +3,9 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSpecialties } from '../hooks/useSpecialties';
+import { useDoctors } from '../hooks/useDoctors';
+import { apiService } from '../services/api';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,12 +17,17 @@ import { toast } from 'sonner';
 import { Calendar, Clock, User, Stethoscope, CheckCircle } from 'lucide-react';
 
 interface Doctor {
-  id: string;
+  _id: string;
   name: string;
   specialty: string;
   image: string;
   rating: number;
   experience: number;
+  consultationFee: number;
+  specialtyId: {
+    _id: string;
+    name: string;
+  };
 }
 
 const BookAppointment = () => {
@@ -34,9 +42,9 @@ const BookAppointment = () => {
   });
   const { user } = useAuth();
   const navigate = useNavigate();
-
-  const doctors: Doctor[] = JSON.parse(localStorage.getItem('doctors') || '[]');
-  const specialties = [...new Set(doctors.map((doc) => doc.specialty))];
+  
+  const { specialties, loading: specialtiesLoading } = useSpecialties();
+  const { doctors, loading: doctorsLoading } = useDoctors(formData.specialty);
 
   const timeSlots = [
     '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
@@ -44,7 +52,7 @@ const BookAppointment = () => {
   ];
 
   const handleDoctorSelect = (doctorId: string) => {
-    const doctor = doctors.find((doc) => doc.id === doctorId);
+    const doctor = doctors.find((doc) => doc._id === doctorId);
     setFormData({
       ...formData,
       doctorId,
@@ -53,28 +61,28 @@ const BookAppointment = () => {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!user) {
       toast.error('Please login to book an appointment');
       navigate('/login');
       return;
     }
 
-    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-    const newAppointment = {
-      id: Date.now().toString(),
-      patientId: user.id,
-      patientName: user.name,
-      ...formData,
-      status: 'confirmed',
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const appointmentData = {
+        doctorId: formData.doctorId,
+        appointmentDate: formData.date,
+        appointmentTime: formData.time,
+        notes: formData.notes
+      };
 
-    appointments.push(newAppointment);
-    localStorage.setItem('appointments', JSON.stringify(appointments));
-
-    toast.success('Appointment booked successfully!');
-    setStep(4); // Success step
+      await apiService.createAppointment(appointmentData);
+      toast.success('Appointment booked successfully! You will receive a confirmation email shortly.');
+      setStep(4); // Success step
+    } catch (error) {
+      console.error('Error booking appointment:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to book appointment');
+    }
   };
 
   const filteredDoctors = formData.specialty 
@@ -146,8 +154,8 @@ const BookAppointment = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {specialties.map((specialty) => (
-                          <SelectItem key={specialty} value={specialty}>
-                            {specialty}
+                          <SelectItem key={specialty._id} value={specialty.name}>
+                            {specialty.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -161,14 +169,14 @@ const BookAppointment = () => {
                     >
                       <Label>Available Doctors</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                        {filteredDoctors.map((doctor) => (
+                        {doctors.map((doctor) => (
                           <motion.div
-                            key={doctor.id}
+                            key={doctor._id}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={() => handleDoctorSelect(doctor.id)}
+                            onClick={() => handleDoctorSelect(doctor._id)}
                             className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
-                              formData.doctorId === doctor.id
+                              formData.doctorId === doctor._id
                                 ? 'border-rose-500 bg-rose-50'
                                 : 'border-gray-200 hover:border-rose-300'
                             }`}
@@ -344,12 +352,12 @@ const BookAppointment = () => {
                     >
                       Back
                     </Button>
-                    <Button
-                      onClick={handleSubmit}
-                      className="flex-1 bg-rose-600 hover:bg-rose-700"
-                    >
-                      Confirm Appointment
-                    </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    className="flex-1 bg-rose-600 hover:bg-rose-700"
+                  >
+                    Confirm Appointment
+                  </Button>
                   </div>
                 </CardContent>
               </Card>
