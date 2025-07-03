@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 
@@ -7,22 +8,18 @@ interface Specialty {
   description: string;
   icon: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
-export const useSpecialties = (includeInactive = false) => {
+export const useSpecialties = () => {
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchSpecialties = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = includeInactive 
-        ? await apiService.getAllSpecialties()
-        : await apiService.getSpecialties();
+      const data = await apiService.getAllSpecialties();
       setSpecialties(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch specialties');
@@ -31,46 +28,52 @@ export const useSpecialties = (includeInactive = false) => {
     }
   };
 
-  const createSpecialty = async (specialtyData: Omit<Specialty, '_id' | 'createdAt' | 'updatedAt' | 'isActive'>) => {
+  const createSpecialty = async (specialtyData: Partial<Specialty>) => {
     try {
+      setError(null);
       const newSpecialty = await apiService.createSpecialty(specialtyData);
       setSpecialties(prev => [...prev, newSpecialty]);
       return newSpecialty;
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create specialty');
       throw err;
     }
   };
 
-  const updateSpecialty = async (id: string, updates: Partial<Specialty>) => {
+  const updateSpecialty = async (id: string, specialtyData: Partial<Specialty>) => {
     try {
-      const updated = await apiService.updateSpecialty(id, updates);
-      setSpecialties(prev => prev.map(s => s._id === id ? updated : s));
-      return updated;
+      setError(null);
+      const updatedSpecialty = await apiService.updateSpecialty(id, specialtyData);
+      setSpecialties(prev => prev.map(s => s._id === id ? updatedSpecialty : s));
+      return updatedSpecialty;
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update specialty');
       throw err;
     }
   };
 
   const deleteSpecialty = async (id: string) => {
     try {
+      setError(null);
       await apiService.deleteSpecialty(id);
       setSpecialties(prev => prev.filter(s => s._id !== id));
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete specialty');
       throw err;
     }
   };
 
   useEffect(() => {
     fetchSpecialties();
-  }, [includeInactive]);
+  }, []);
 
   return {
     specialties,
     loading,
     error,
-    refetch: fetchSpecialties,
     createSpecialty,
     updateSpecialty,
-    deleteSpecialty
+    deleteSpecialty,
+    refetch: fetchSpecialties
   };
 };

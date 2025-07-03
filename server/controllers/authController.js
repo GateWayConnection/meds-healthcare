@@ -1,29 +1,21 @@
+
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const validator = require('validator');
 
-/**
- * Generate JWT token
- */
 const generateToken = (userId) => {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-/**
- * Register new user
- * POST /api/auth/register
- */
 const register = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      phone,
-      password,
-      role,
+    const { 
+      name, 
+      email, 
+      password, 
+      phoneNumber, 
+      role = 'patient',
       dateOfBirth,
       specialty,
       licenseNumber,
@@ -31,125 +23,134 @@ const register = async (req, res) => {
       bio
     } = req.body;
 
-    // Check if user already exists with email or phone
-    const existingUser = await User.findOne({
-      $or: [{ email }, { phone }]
-    });
-
-    if (existingUser) {
-      const field = existingUser.email === email ? 'email' : 'phone number';
+    // Validation
+    if (!name || !email || !password || !phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: `User with this ${field} already exists.`
+        message: 'Name, email, password, and phone number are required'
       });
     }
 
-    // Create user data object
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email.toLowerCase() },
+        { phone: phoneNumber }
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email or phone number already exists'
+      });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user
     const userData = {
-      name,
-      email,
-      phone,
-      password,
-      role: role || 'patient'
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+      phone: phoneNumber.trim(),
+      role
     };
 
     // Add role-specific fields
-    if (userData.role === 'patient') {
-      userData.dateOfBirth = dateOfBirth;
-    } else if (userData.role === 'doctor') {
-      userData.specialty = specialty;
-      userData.licenseNumber = licenseNumber;
-      userData.experience = experience;
-      userData.bio = bio;
-      userData.verified = false; // Doctors need verification
+    if (role === 'patient' && dateOfBirth) {
+      userData.dateOfBirth = new Date(dateOfBirth);
     }
 
-    // Create new user
+    if (role === 'doctor') {
+      if (!specialty || !licenseNumber || !experience) {
+        return res.status(400).json({
+          success: false,
+          message: 'Specialty, license number, and experience are required for doctors'
+        });
+      }
+      userData.specialty = specialty.trim();
+      userData.licenseNumber = licenseNumber.trim();
+      userData.experience = parseInt(experience);
+      userData.bio = bio?.trim() || '';
+      userData.isVerified = false; // Doctors need admin verification
+    }
+
     const user = new User(userData);
     await user.save();
 
     // Generate token
     const token = generateToken(user._id);
 
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
     res.status(201).json({
       success: true,
-      message: 'User registered successfully.',
+      message: role === 'doctor' 
+        ? 'Doctor account created successfully. Please wait for admin verification.' 
+        : 'Account created successfully',
       data: {
-        user: user.toJSON(),
-        token
+        user: userResponse,
+        token: role === 'patient' ? token : null // Only provide token for patients
       }
     });
+
   } catch (error) {
     console.error('Registration error:', error);
-    
-    // Handle validation errors
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: messages.join('. ')
-      });
-    }
-
-    // Handle duplicate key errors
-    if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      return res.status(400).json({
-        success: false,
-        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists.`
-      });
-    }
-
     res.status(500).json({
       success: false,
-      message: 'Internal server error during registration.'
+      message: 'Internal server error during registration'
     });
   }
 };
 
-/**
- * Login user
- * POST /api/auth/login
- */
 const login = async (req, res) => {
   try {
-    const { identifier, password, role } = req.body;
+    const { email, password } = req.body;
 
-    // Validate input
-    if (!identifier || !password) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email/phone and password are required.'
+        message: 'Email and password are required'
       });
     }
 
-    // Determine if identifier is email or phone
-    const isEmail = identifier.includes('@');
-    const query = isEmail 
-      ? { email: identifier.toLowerCase() }
-      : { phone: identifier };
-
-    // Add role filter if provided
-    if (role) {
-      query.role = role;
-    }
-
-    // Find user by email or phone
-    const user = await User.findOne(query);
+    // Find user by email
+    const user = await User.findOne({ 
+      email: email.toLowerCase().trim() 
+    }).select('+password');
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials.'
+        message: 'Invalid email or password'
       });
     }
 
     // Check password
-    const isPasswordValid = await user.comparePassword(password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials.'
+        message: 'Invalid email or password'
       });
     }
 
@@ -161,99 +162,93 @@ const login = async (req, res) => {
       });
     }
 
-    // Check if doctor account is verified
-    if (user.role === 'doctor' && !user.verified) {
+    // Check if doctor is verified
+    if (user.role === 'doctor' && !user.isVerified) {
       return res.status(401).json({
         success: false,
-        message: 'Doctor account is pending verification. Please wait for admin approval.'
+        message: 'Doctor account is pending verification. Please contact admin.'
       });
     }
 
     // Generate token
     const token = generateToken(user._id);
 
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
     res.json({
       success: true,
-      message: 'Login successful.',
+      message: 'Login successful',
       data: {
-        user: user.toJSON(),
+        user: userResponse,
         token
       }
     });
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error during login.'
+      message: 'Internal server error during login'
     });
   }
 };
 
-/**
- * Get current user profile
- * GET /api/auth/me
- */
 const getProfile = async (req, res) => {
   try {
-    // User is already attached to req by auth middleware
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
     res.json({
       success: true,
       data: {
-        user: req.user.toJSON()
+        user
       }
     });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error.'
+      message: 'Internal server error'
     });
   }
 };
 
-/**
- * Logout user (client-side handles token removal)
- * POST /api/auth/logout
- */
 const logout = async (req, res) => {
   try {
-    // In a JWT-based auth system, logout is primarily handled client-side
-    // by removing the token. We can optionally implement token blacklisting here.
-    
     res.json({
       success: true,
-      message: 'Logout successful.'
+      message: 'Logout successful'
     });
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error during logout.'
+      message: 'Internal server error during logout'
     });
   }
 };
 
-/**
- * Refresh token
- * POST /api/auth/refresh
- */
 const refreshToken = async (req, res) => {
   try {
-    // Generate new token with current user ID
     const token = generateToken(req.user._id);
     
     res.json({
       success: true,
-      message: 'Token refreshed successfully.',
-      data: {
-        token
-      }
+      data: { token }
     });
   } catch (error) {
-    console.error('Token refresh error:', error);
+    console.error('Refresh token error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error during token refresh.'
+      message: 'Internal server error'
     });
   }
 };

@@ -1,8 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 
 interface Stats {
-  _id: string;
   expertDoctors: number;
   happyPatients: number;
   medicalDepartments: number;
@@ -11,7 +11,7 @@ interface Stats {
 
 export const useStats = () => {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStats = async () => {
@@ -27,12 +27,14 @@ export const useStats = () => {
     }
   };
 
-  const updateStats = async (newStats: Partial<Stats>) => {
+  const updateStats = async (statsData: Partial<Stats>) => {
     try {
-      const updated = await apiService.updateStats(newStats);
-      setStats(updated);
-      return updated;
+      setError(null);
+      const updatedStats = await apiService.updateStats(statsData);
+      setStats(updatedStats);
+      return updatedStats;
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update stats');
       throw err;
     }
   };
@@ -45,7 +47,7 @@ export const useStats = () => {
     stats,
     loading,
     error,
-    refetch: fetchStats,
-    updateStats
+    updateStats,
+    refetch: fetchStats
   };
 };
