@@ -14,19 +14,28 @@ const UserSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  phone: {
-    type: String,
-    required: [true, 'Phone number is required'],
-    unique: true,
-    trim: true,
-    validate: {
-      validator: function(v) {
-        // South Sudan phone number validation (+249 followed by 9 digits)
-        return /^\+249\d{9}$/.test(v);
-      },
-      message: 'Please enter a valid South Sudan phone number (+249XXXXXXXXX)'
+ // Add to your phone field definition
+phone: {
+  type: String,
+  required: [true, 'Phone number is required'],
+  unique: true,
+  trim: true,
+  set: function(phone) {
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '');
+    // Ensure South Sudan format
+    if (!cleaned.startsWith('249')) {
+      cleaned = '249' + cleaned.slice(-9);
     }
+    return '+' + cleaned;
   },
+  validate: {
+    validator: function(v) {
+      return /^\+249\d{9}$/.test(v);
+    },
+    message: 'Please enter a valid South Sudan phone number (+249XXXXXXXXX)'
+  }
+},
   password: {
     type: String,
     required: [true, 'Password is required'],

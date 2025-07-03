@@ -203,21 +203,7 @@ const Login = () => {
             </CardContent>
           </Card>
 
-          {/* Demo Credentials */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-6 p-4 bg-white/60 backdrop-blur-sm rounded-lg border"
-          >
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">{t('login.demoCredentials')}</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div><strong>{t('login.patient')}:</strong> patient@demo.com / password</div>
-              <div><strong>{t('login.doctor')}:</strong> doctor@demo.com / password</div>
-              <div><strong>{t('login.admin')}:</strong> admin@demo.com / password</div>
-            </div>
-          </motion.div>
-        </motion.div>
+         </motion.div>
       </div>
     </Layout>
   );
