@@ -5,17 +5,14 @@ import { apiService } from '../services/api';
 interface Course {
   _id: string;
   title: string;
-  description: string;
-  instructor: string;
-  duration: string;
-  level: string;
+  summary: string;
+  content: string;
   category: string;
   image: string;
   videoUrl: string;
-  price: number;
+  videoTitle: string;
   isActive: boolean;
-  enrollments: number;
-  rating: number;
+  views: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,7 +29,7 @@ export const useCourses = () => {
       const data = await apiService.getCourses();
       setCourses(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch courses');
+      setError(err instanceof Error ? err.message : 'Failed to fetch health guides');
     } finally {
       setLoading(false);
     }
@@ -45,7 +42,7 @@ export const useCourses = () => {
       const data = await apiService.getAllCourses();
       setCourses(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch courses');
+      setError(err instanceof Error ? err.message : 'Failed to fetch health guides');
     } finally {
       setLoading(false);
     }
@@ -58,7 +55,7 @@ export const useCourses = () => {
       setCourses(prev => [...prev, newCourse]);
       return newCourse;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create course');
+      setError(err instanceof Error ? err.message : 'Failed to create health guide');
       throw err;
     }
   };
@@ -70,7 +67,7 @@ export const useCourses = () => {
       setCourses(prev => prev.map(c => c._id === id ? updatedCourse : c));
       return updatedCourse;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update course');
+      setError(err instanceof Error ? err.message : 'Failed to update health guide');
       throw err;
     }
   };
@@ -81,7 +78,7 @@ export const useCourses = () => {
       await apiService.deleteCourse(id);
       setCourses(prev => prev.filter(c => c._id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete course');
+      setError(err instanceof Error ? err.message : 'Failed to delete health guide');
       throw err;
     }
   };

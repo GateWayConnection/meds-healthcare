@@ -7,27 +7,26 @@ const courseSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  description: {
-    type: String,
-    required: true
-  },
-  instructor: {
+  summary: {
     type: String,
     required: true,
-    trim: true
+    maxlength: 300
   },
-  duration: {
+  content: {
     type: String,
     required: true
-  },
-  level: {
-    type: String,
-    enum: ['Beginner', 'Intermediate', 'Advanced'],
-    default: 'Beginner'
   },
   category: {
     type: String,
-    required: true
+    required: true,
+    enum: [
+      'Disease Prevention',
+      'Nutrition & Wellness', 
+      'First Aid Basics',
+      'Maternal & Child Health',
+      'Mental Health Support',
+      'Chronic Illness Management'
+    ]
   },
   image: {
     type: String,
@@ -37,23 +36,17 @@ const courseSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  price: {
-    type: Number,
-    default: 0
+  videoTitle: {
+    type: String,
+    default: ''
   },
   isActive: {
     type: Boolean,
     default: true
   },
-  enrollments: {
+  views: {
     type: Number,
     default: 0
-  },
-  rating: {
-    type: Number,
-    default: 4.5,
-    min: 0,
-    max: 5
   }
 }, {
   timestamps: true

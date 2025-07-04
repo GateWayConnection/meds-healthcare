@@ -4,18 +4,18 @@ const router = express.Router();
 const Course = require('../models/Course');
 const { authenticate } = require('../middleware/auth');
 
-// GET /api/courses - Get all active courses
+// GET /api/courses - Get all active health guides
 router.get('/', async (req, res) => {
   try {
     const courses = await Course.find({ isActive: true }).sort({ createdAt: -1 });
     res.json(courses);
   } catch (error) {
-    console.error('Error fetching courses:', error);
-    res.status(500).json({ error: 'Failed to fetch courses' });
+    console.error('Error fetching health guides:', error);
+    res.status(500).json({ error: 'Failed to fetch health guides' });
   }
 });
 
-// GET /api/courses/all - Get all courses (admin only)
+// GET /api/courses/all - Get all health guides (admin only)
 router.get('/all', authenticate, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -25,28 +25,32 @@ router.get('/all', authenticate, async (req, res) => {
     const courses = await Course.find().sort({ createdAt: -1 });
     res.json(courses);
   } catch (error) {
-    console.error('Error fetching all courses:', error);
-    res.status(500).json({ error: 'Failed to fetch courses' });
+    console.error('Error fetching all health guides:', error);
+    res.status(500).json({ error: 'Failed to fetch health guides' });
   }
 });
 
-// GET /api/courses/:id - Get course by ID
+// GET /api/courses/:id - Get health guide by ID
 router.get('/:id', async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
     
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ error: 'Health guide not found' });
     }
+    
+    // Increment views
+    course.views += 1;
+    await course.save();
     
     res.json(course);
   } catch (error) {
-    console.error('Error fetching course:', error);
-    res.status(500).json({ error: 'Failed to fetch course' });
+    console.error('Error fetching health guide:', error);
+    res.status(500).json({ error: 'Failed to fetch health guide' });
   }
 });
 
-// POST /api/courses - Create new course (admin only)
+// POST /api/courses - Create new health guide (admin only)
 router.post('/', authenticate, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -55,43 +59,39 @@ router.post('/', authenticate, async (req, res) => {
 
     const { 
       title, 
-      description, 
-      instructor, 
-      duration, 
-      level, 
+      summary, 
+      content, 
       category, 
       image, 
       videoUrl, 
-      price 
+      videoTitle 
     } = req.body;
     
-    if (!title || !description || !instructor || !duration || !category) {
+    if (!title || !summary || !content || !category) {
       return res.status(400).json({ 
-        error: 'Title, description, instructor, duration, and category are required' 
+        error: 'Title, summary, content, and category are required' 
       });
     }
 
     const course = new Course({
       title: title.trim(),
-      description: description.trim(),
-      instructor: instructor.trim(),
-      duration: duration.trim(),
-      level: level || 'Beginner',
+      summary: summary.trim(),
+      content: content.trim(),
       category: category.trim(),
       image: image || '/placeholder.svg',
       videoUrl: videoUrl || '',
-      price: price || 0
+      videoTitle: videoTitle || ''
     });
 
     await course.save();
     res.status(201).json(course);
   } catch (error) {
-    console.error('Error creating course:', error);
-    res.status(500).json({ error: 'Failed to create course' });
+    console.error('Error creating health guide:', error);
+    res.status(500).json({ error: 'Failed to create health guide' });
   }
 });
 
-// PUT /api/courses/:id - Update course (admin only)
+// PUT /api/courses/:id - Update health guide (admin only)
 router.put('/:id', authenticate, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -100,42 +100,38 @@ router.put('/:id', authenticate, async (req, res) => {
 
     const course = await Course.findById(req.params.id);
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ error: 'Health guide not found' });
     }
 
     const { 
       title, 
-      description, 
-      instructor, 
-      duration, 
-      level, 
+      summary, 
+      content, 
       category, 
       image, 
       videoUrl, 
-      price,
+      videoTitle,
       isActive 
     } = req.body;
 
     if (title !== undefined) course.title = title.trim();
-    if (description !== undefined) course.description = description.trim();
-    if (instructor !== undefined) course.instructor = instructor.trim();
-    if (duration !== undefined) course.duration = duration.trim();
-    if (level !== undefined) course.level = level;
+    if (summary !== undefined) course.summary = summary.trim();
+    if (content !== undefined) course.content = content.trim();
     if (category !== undefined) course.category = category.trim();
     if (image !== undefined) course.image = image;
     if (videoUrl !== undefined) course.videoUrl = videoUrl;
-    if (price !== undefined) course.price = price;
+    if (videoTitle !== undefined) course.videoTitle = videoTitle;
     if (isActive !== undefined) course.isActive = isActive;
 
     await course.save();
     res.json(course);
   } catch (error) {
-    console.error('Error updating course:', error);
-    res.status(500).json({ error: 'Failed to update course' });
+    console.error('Error updating health guide:', error);
+    res.status(500).json({ error: 'Failed to update health guide' });
   }
 });
 
-// DELETE /api/courses/:id - Delete course (admin only)
+// DELETE /api/courses/:id - Delete health guide (admin only)
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -144,13 +140,13 @@ router.delete('/:id', authenticate, async (req, res) => {
 
     const course = await Course.findByIdAndDelete(req.params.id);
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ error: 'Health guide not found' });
     }
 
-    res.json({ message: 'Course deleted successfully' });
+    res.json({ message: 'Health guide deleted successfully' });
   } catch (error) {
-    console.error('Error deleting course:', error);
-    res.status(500).json({ error: 'Failed to delete course' });
+    console.error('Error deleting health guide:', error);
+    res.status(500).json({ error: 'Failed to delete health guide' });
   }
 });
 
