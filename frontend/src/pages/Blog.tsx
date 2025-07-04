@@ -95,7 +95,7 @@ const Blog = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-2">
+                      <motion.div className="flex items-center justify-between pt-2">
                         <div className="flex items-center space-x-4 text-sm text-gray-500">
                           <div className="flex items-center">
                             <Eye className="w-4 h-4 mr-1" />
@@ -116,7 +116,7 @@ const Blog = () => {
                         >
                           Read More
                         </Button>
-                      </div>
+                      </motion.div>
 
                       {post.tags && post.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-2">

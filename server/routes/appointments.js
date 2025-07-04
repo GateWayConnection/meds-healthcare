@@ -8,7 +8,7 @@ const { authenticate } = require('../middleware/auth');
 const nodemailer = require('nodemailer');
 
 // Configure nodemailer
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'byiringirourban20@gmail.com',

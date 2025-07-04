@@ -22,6 +22,8 @@ import Register from "./pages/Register";
 import Chat from "./pages/Chat";
 import Academics from "./pages/Academics";
 import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
+
 
 // Patient Pages
 import PatientDashboard from "./pages/patient/PatientDashboard";
