@@ -1,3 +1,4 @@
+
 class ApiService {
   private baseURL: string;
 
@@ -14,8 +15,13 @@ class ApiService {
     name: string;
     email: string;
     password: string;
-    phoneNumber: string;
+    phone: string; // Changed from phoneNumber to phone
     role: string;
+    dateOfBirth?: string;
+    specialty?: string;
+    licenseNumber?: string;
+    experience?: number;
+    bio?: string;
   }) {
     return this.post('/auth/register', userData);
   }

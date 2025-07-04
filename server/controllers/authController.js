@@ -1,4 +1,3 @@
-
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -14,7 +13,7 @@ const register = async (req, res) => {
       name, 
       email, 
       password, 
-      phoneNumber, 
+      phone,
       role = 'patient',
       dateOfBirth,
       specialty,
@@ -23,8 +22,10 @@ const register = async (req, res) => {
       bio
     } = req.body;
 
+    console.log('Registration request body:', req.body);
+
     // Validation
-    if (!name || !email || !password || !phoneNumber) {
+    if (!name || !email || !password || !phone) {
       return res.status(400).json({
         success: false,
         message: 'Name, email, password, and phone number are required'
@@ -49,7 +50,7 @@ const register = async (req, res) => {
     const existingUser = await User.findOne({
       $or: [
         { email: email.toLowerCase() },
-        { phone: phoneNumber }
+        { phone: phone }
       ]
     });
 
@@ -60,16 +61,12 @@ const register = async (req, res) => {
       });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     // Create user
     const userData = {
       name: name.trim(),
       email: email.toLowerCase().trim(),
-      password: hashedPassword,
-      phone: phoneNumber.trim(),
+      password, // Will be hashed by the pre-save middleware
+      phone: phone.trim(),
       role
     };
 
@@ -89,7 +86,7 @@ const register = async (req, res) => {
       userData.licenseNumber = licenseNumber.trim();
       userData.experience = parseInt(experience);
       userData.bio = bio?.trim() || '';
-      userData.isVerified = false; // Doctors need admin verification
+      userData.verified = false; // Doctors need admin verification
     }
 
     const user = new User(userData);

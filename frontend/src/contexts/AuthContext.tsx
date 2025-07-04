@@ -95,7 +95,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      const response = await apiService.register(userData);
+      // Map phoneNumber to phone for API consistency
+      const apiData = {
+        ...userData,
+        phone: userData.phoneNumber || userData.phone
+      };
+      
+      // Remove phoneNumber if it exists to avoid confusion
+      if (apiData.phoneNumber) {
+        delete apiData.phoneNumber;
+      }
+      
+      console.log('Sending registration data:', apiData);
+      
+      const response = await apiService.register(apiData);
 
       if (response.success && response.data) {
         // For patients, auto-login after registration
