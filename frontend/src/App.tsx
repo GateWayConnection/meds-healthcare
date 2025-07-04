@@ -40,6 +40,8 @@ import UserManager from "./pages/admin/UserManager";
 import SpecialtyManager from "./pages/admin/SpecialtyManager";
 import DoctorManager from "./pages/admin/DoctorManager";
 import StatsManager from "./pages/admin/StatsManager";
+import CourseManager from "./pages/admin/CourseManager";
+import BlogManager from "./pages/admin/BlogManager";
 
 import NotFound from "./pages/NotFound";
 
