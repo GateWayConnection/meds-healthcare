@@ -1,9 +1,10 @@
+
 const express = require('express');
 const router = express.Router();
 const Specialty = require('../models/Specialty');
 const { authenticate } = require('../middleware/auth');
 
-// GET /api/specialties - Get all active specialties
+// GET /api/specialties - Get all active specialties (PUBLIC)
 router.get('/', async (req, res) => {
   try {
     const specialties = await Specialty.find({ isActive: true }).sort({ name: 1 });

@@ -2,67 +2,109 @@
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
-import { Search, MapPin, Clock, Star, Phone, Calendar, MessageCircle } from 'lucide-react';
-import { useDoctors } from '../hooks/useDoctors';
-import { useSpecialties } from '../hooks/useSpecialties';
+import { Search, MapPin, Clock, Star, Calendar, MessageCircle, Phone } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 
 const FindDoctor = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
-  const { doctors, loading: doctorsLoading } = useDoctors();
-  const { specialties, loading: specialtiesLoading } = useSpecialties();
+  const [loading, setLoading] = useState(false);
+  
+  // Mock data for specialties - in real app, this would come from API
+  const specialties = [
+    { _id: '1', name: 'Cardiology', description: 'Heart and blood vessel care' },
+    { _id: '2', name: 'Dermatology', description: 'Skin care specialist' },
+    { _id: '3', name: 'Pediatrics', description: 'Child healthcare' },
+    { _id: '4', name: 'Orthopedics', description: 'Bone and joint care' },
+    { _id: '5', name: 'Neurology', description: 'Brain and nervous system' }
+  ];
 
-  const filteredDoctors = doctors.filter((doctor: any) => {
+  // Mock data for doctors - in real app, this would come from API
+  const doctors = [
+    {
+      _id: '1',
+      name: 'Dr. Sarah Johnson',
+      specialty: 'Cardiology',
+      experience: 15,
+      rating: 4.9,
+      consultationFee: 150,
+      image: '/placeholder.svg',
+      qualifications: ['MD', 'FACC'],
+      isAvailable: true,
+      availability: { monday: ['09:00', '17:00'], tuesday: ['09:00', '17:00'] }
+    },
+    {
+      _id: '2',
+      name: 'Dr. Michael Chen',
+      specialty: 'Dermatology',
+      experience: 12,
+      rating: 4.8,
+      consultationFee: 120,
+      image: '/placeholder.svg',
+      qualifications: ['MD', 'FAAD'],
+      isAvailable: true,
+      availability: { monday: ['10:00', '16:00'], wednesday: ['09:00', '17:00'] }
+    },
+    {
+      _id: '3',
+      name: 'Dr. Emily Rodriguez',
+      specialty: 'Pediatrics',
+      experience: 10,
+      rating: 4.7,
+      consultationFee: 100,
+      image: '/placeholder.svg',
+      qualifications: ['MD', 'FAAP'],
+      isAvailable: false,
+      availability: { tuesday: ['09:00', '17:00'], thursday: ['09:00', '17:00'] }
+    }
+  ];
+
+  const filteredDoctors = doctors.filter(doctor => {
     const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSpecialty = !selectedSpecialty || doctor.specialty === selectedSpecialty;
-    return matchesSearch && matchesSpecialty && doctor.isActive;
+    return matchesSearch && matchesSpecialty;
   });
 
-  const getAvailabilityStatus = (doctor: any) => {
-    if (!doctor.isAvailable) return { status: 'Unavailable', color: 'bg-red-100 text-red-800' };
-    
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    const availability = doctor.availability && doctor.availability[today];
-    
-    if (availability && availability.isAvailable) {
-      return { status: 'Available Today', color: 'bg-green-100 text-green-800' };
+  const handleBookAppointment = (doctorId: string) => {
+    if (!user) {
+      toast.error('Please login to book an appointment');
+      navigate('/login');
+      return;
     }
-    
-    return { status: 'Available', color: 'bg-yellow-100 text-yellow-800' };
+    navigate(`/book-appointment?doctor=${doctorId}`);
   };
 
-  const handleBookAppointment = (doctor: any) => {
-    // Navigate to book appointment with doctor info
-    window.location.href = `/book-appointment?doctorId=${doctor._id}`;
+  const handleChatWithDoctor = (doctorId: string) => {
+    if (!user) {
+      toast.error('Please login to chat with doctors');
+      navigate('/login');
+      return;
+    }
+    navigate(`/chat?doctor=${doctorId}`);
   };
 
-  const handleChatDoctor = (doctor: any) => {
-    // Navigate to chat with doctor
-    window.location.href = `/chat?doctorId=${doctor._id}`;
+  const handleCallDoctor = (doctorId: string) => {
+    if (!user) {
+      toast.error('Please login to contact doctors');
+      navigate('/login');
+      return;
+    }
+    toast.info('Call feature will be available soon');
   };
-
-  if (doctorsLoading || specialtiesLoading) {
-    return (
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading doctors...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
         <div className="py-12">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
@@ -70,31 +112,37 @@ const FindDoctor = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-center mb-12"
             >
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">Find a Doctor</h1>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">Find the Right Doctor</h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Connect with qualified healthcare professionals in your area
+                Search for qualified healthcare professionals by specialty, location, or name
               </p>
             </motion.div>
 
-            <Card className="shadow-lg mb-8">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search by doctor name or specialty..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
+            {/* Search and Filter Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white p-6 rounded-lg shadow-sm mb-8"
+            >
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input
+                    placeholder="Search doctors by name or specialty..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="md:w-64">
                   <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
-                    <SelectTrigger className="w-full md:w-64">
-                      <SelectValue placeholder="Select specialty" />
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Specialties" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">All Specialties</SelectItem>
-                      {specialties.map((specialty: any) => (
+                      {specialties.map(specialty => (
                         <SelectItem key={specialty._id} value={specialty.name}>
                           {specialty.name}
                         </SelectItem>
@@ -102,82 +150,100 @@ const FindDoctor = () => {
                     </SelectContent>
                   </Select>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </motion.div>
 
+            {/* Results */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDoctors.map((doctor: any, index: number) => {
-                const availability = getAvailabilityStatus(doctor);
-                return (
-                  <motion.div
-                    key={doctor._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <Card className="shadow-lg hover:shadow-xl transition-shadow h-full">
-                      <CardHeader className="text-center">
-                        <div className="mx-auto mb-4">
-                          <img
-                            src={doctor.image || '/placeholder.svg'}
-                            alt={doctor.name}
-                            className="w-20 h-20 rounded-full mx-auto object-cover"
-                          />
-                        </div>
-                        <CardTitle className="text-xl">{doctor.name}</CardTitle>
-                        <p className="text-blue-600 font-medium">{doctor.specialty}</p>
-                        <div className="flex items-center justify-center mt-2">
-                          <Star className="w-4 h-4 text-yellow-500 mr-1" />
-                          <span className="text-sm text-gray-600">{doctor.rating || 4.5}</span>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Badge className={availability.color}>
-                            {availability.status}
-                          </Badge>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {doctor.experience} years exp.
-                          </div>
-                        </div>
-
-                        {doctor.qualifications && doctor.qualifications.length > 0 && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-700 mb-1">Qualifications:</p>
-                            <p className="text-sm text-gray-600">{doctor.qualifications.join(', ')}</p>
-                          </div>
+              {filteredDoctors.map((doctor, index) => (
+                <motion.div
+                  key={doctor._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="shadow-lg hover:shadow-xl transition-shadow h-full">
+                    <CardHeader className="text-center">
+                      <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden bg-gray-200">
+                        <img
+                          src={doctor.image}
+                          alt={doctor.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <CardTitle className="text-xl">{doctor.name}</CardTitle>
+                      <div className="flex items-center justify-center gap-2">
+                        <Badge variant="secondary">{doctor.specialty}</Badge>
+                        {doctor.isAvailable ? (
+                          <Badge className="bg-green-100 text-green-800">Available</Badge>
+                        ) : (
+                          <Badge className="bg-red-100 text-red-800">Busy</Badge>
                         )}
-
-                        <div className="flex items-center text-sm text-gray-600">
-                          <MapPin className="w-4 h-4 mr-2" />
-                          <span>Consultation Fee: ${doctor.consultationFee}</span>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <div className="flex items-center">
+                          <Clock className="w-4 h-4 mr-1" />
+                          {doctor.experience} years exp.
                         </div>
+                        <div className="flex items-center">
+                          <Star className="w-4 h-4 mr-1 text-yellow-400" />
+                          {doctor.rating}
+                        </div>
+                      </div>
 
-                        <div className="flex space-x-2 pt-4">
-                          <Button
-                            onClick={() => handleBookAppointment(doctor)}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700"
-                            size="sm"
-                          >
-                            <Calendar className="w-4 h-4 mr-2" />
-                            Book Appointment
-                          </Button>
-                          <Button
-                            onClick={() => handleChatDoctor(doctor)}
-                            variant="outline"
-                            size="sm"
+                      <div className="flex items-center text-sm text-gray-600">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        Consultation Fee: ${doctor.consultationFee}
+                      </div>
+
+                      {doctor.qualifications && (
+                        <div className="flex flex-wrap gap-1">
+                          {doctor.qualifications.map((qual, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {qual}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="space-y-2 pt-4">
+                        <Button 
+                          className="w-full bg-rose-600 hover:bg-rose-700"
+                          onClick={() => handleBookAppointment(doctor._id)}
+                          disabled={!doctor.isAvailable}
+                        >
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Book Appointment
+                        </Button>
+                        
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
                             className="flex-1"
+                            onClick={() => handleChatWithDoctor(doctor._id)}
+                            disabled={!doctor.isAvailable}
                           >
-                            <MessageCircle className="w-4 h-4 mr-2" />
+                            <MessageCircle className="w-4 h-4 mr-1" />
                             Chat
                           </Button>
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => handleCallDoctor(doctor._id)}
+                            disabled={!doctor.isAvailable}
+                          >
+                            <Phone className="w-4 h-4 mr-1" />
+                            Call
+                          </Button>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                );
-              })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
             </div>
 
             {filteredDoctors.length === 0 && (
@@ -187,8 +253,8 @@ const FindDoctor = () => {
                 className="text-center py-12"
               >
                 <p className="text-gray-600 text-lg">No doctors found matching your criteria.</p>
-                <p className="text-gray-500 mt-2">Try adjusting your search or specialty filter.</p>
-              </motion.div>
+                <p className="text-gray-500 mt-2">Try adjusting your search or filters.</p>
+              </div>
             )}
           </div>
         </div>

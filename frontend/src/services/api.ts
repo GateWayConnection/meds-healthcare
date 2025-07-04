@@ -1,3 +1,4 @@
+
 class ApiService {
   private baseURL: string;
 
@@ -18,6 +19,23 @@ class ApiService {
     role: string;
   }) {
     return this.post('/auth/register', userData);
+  }
+
+  // User management endpoints
+  async getUsers() {
+    return this.get('/auth/users');
+  }
+
+  async createUser(userData: any) {
+    return this.post('/auth/register', userData);
+  }
+
+  async updateUser(id: string, userData: any) {
+    return this.put(`/auth/users/${id}`, userData);
+  }
+
+  async deleteUser(id: string) {
+    return this.delete(`/auth/users/${id}`);
   }
 
   // Stats endpoints
