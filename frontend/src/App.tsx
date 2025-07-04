@@ -70,6 +70,7 @@ const App = () => (
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/academics" element={<Academics />} />
                 <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:id" element={<BlogPost />} />
                 
                 {/* Patient Routes */}
                 <Route path="/patient/dashboard" element={<PatientDashboard />} />

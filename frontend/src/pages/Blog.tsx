@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,15 @@ import { useBlogs } from '../hooks/useBlogs';
 
 const Blog = () => {
   const { blogs, loading } = useBlogs();
+  const navigate = useNavigate();
+
+  const handleReadMore = (blogId: string) => {
+    navigate(`/blog/${blogId}`);
+  };
+
+  const handleBlogClick = (blogId: string) => {
+    navigate(`/blog/${blogId}`);
+  };
 
   if (loading) {
     return (
@@ -48,12 +58,15 @@ const Blog = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card className="shadow-lg hover:shadow-xl transition-shadow h-full cursor-pointer">
+                  <Card 
+                    className="shadow-lg hover:shadow-xl transition-shadow h-full cursor-pointer"
+                    onClick={() => handleBlogClick(post._id)}
+                  >
                     <div className="aspect-video bg-gray-200 rounded-t-lg overflow-hidden">
                       <img
                         src={post.image}
                         alt={post.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                     <CardHeader>
@@ -93,7 +106,14 @@ const Blog = () => {
                             {post.likes}
                           </div>
                         </div>
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReadMore(post._id);
+                          }}
+                        >
                           Read More
                         </Button>
                       </div>
@@ -121,7 +141,7 @@ const Blog = () => {
               >
                 <p className="text-gray-600 text-lg">No blog posts available at the moment.</p>
                 <p className="text-gray-500 mt-2">Check back later for new articles and insights.</p>
-              </div>
+              </motion.div>
             )}
           </div>
         </div>

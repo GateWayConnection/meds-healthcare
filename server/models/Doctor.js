@@ -1,16 +1,18 @@
+
 const mongoose = require('mongoose');
 
-const doctorSchema = new mongoose.Schema({
+const DoctorSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
+    required: [true, 'Name is required'],
     trim: true
   },
   email: {
     type: String,
-    required: true,
+    required: [true, 'Email is required'],
     unique: true,
-    lowercase: true
+    lowercase: true,
+    trim: true
   },
   specialtyId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -23,13 +25,13 @@ const doctorSchema = new mongoose.Schema({
   },
   experience: {
     type: Number,
-    required: true,
+    required: [true, 'Experience is required'],
     min: 0
   },
   rating: {
     type: Number,
     default: 4.5,
-    min: 0,
+    min: 1,
     max: 5
   },
   image: {
@@ -37,21 +39,21 @@ const doctorSchema = new mongoose.Schema({
     default: '/placeholder.svg'
   },
   qualifications: [{
-    type: String
+    type: String,
+    trim: true
   }],
   availability: {
-    monday: { type: Boolean, default: true },
-    tuesday: { type: Boolean, default: true },
-    wednesday: { type: Boolean, default: true },
-    thursday: { type: Boolean, default: true },
-    friday: { type: Boolean, default: true },
-    saturday: { type: Boolean, default: false },
-    sunday: { type: Boolean, default: false }
+    type: Object,
+    default: {}
   },
   consultationFee: {
     type: Number,
-    required: true,
+    required: [true, 'Consultation fee is required'],
     min: 0
+  },
+  isAvailable: {
+    type: Boolean,
+    default: true
   },
   isActive: {
     type: Boolean,
@@ -61,4 +63,4 @@ const doctorSchema = new mongoose.Schema({
   timestamps: true
 });
 
-module.exports = mongoose.model('Doctor', doctorSchema);
+module.exports = mongoose.model('Doctor', DoctorSchema);
