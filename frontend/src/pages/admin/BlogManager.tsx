@@ -1,25 +1,21 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, BookOpen, Eye, Heart } from 'lucide-react';
+import { Search, FileText, Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { useBlogs } from '../../hooks/useBlogs';
-import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const BlogManager = () => {
-  const { blogs, loading, createBlog, updateBlog, deleteBlog, fetchAllBlogs, fetchMyBlogs } = useBlogs();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingBlog, setEditingBlog] = useState(null);
+  const { blogs, loading, createBlog, updateBlog, deleteBlog, fetchAllBlogs } = useBlogs();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingBlog, setEditingBlog] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     excerpt: '',
@@ -30,15 +26,17 @@ const BlogManager = () => {
     readTime: '5 min read'
   });
 
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      fetchAllBlogs();
-    } else {
-      fetchMyBlogs();
-    }
-  }, [user]);
+  React.useEffect(() => {
+    fetchAllBlogs();
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const filteredBlogs = blogs.filter(blog =>
+    blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    blog.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    blog.author.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const blogData = {
@@ -48,29 +46,20 @@ const BlogManager = () => {
 
       if (editingBlog) {
         await updateBlog(editingBlog._id, blogData);
-        toast({
-          title: "Success",
-          description: "Blog post updated successfully",
-        });
+        toast.success('Blog updated successfully');
+        setEditingBlog(null);
       } else {
         await createBlog(blogData);
-        toast({
-          title: "Success",
-          description: "Blog post created successfully",
-        });
+        toast.success('Blog created successfully');
+        setIsCreateModalOpen(false);
       }
-      setIsDialogOpen(false);
       resetForm();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to save blog');
     }
   };
 
-  const handleEdit = (blog) => {
+  const handleEdit = (blog: any) => {
     setEditingBlog(blog);
     setFormData({
       title: blog.title,
@@ -81,23 +70,16 @@ const BlogManager = () => {
       image: blog.image,
       readTime: blog.readTime
     });
-    setIsDialogOpen(true);
+    setIsCreateModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this blog post?')) {
       try {
         await deleteBlog(id);
-        toast({
-          title: "Success",
-          description: "Blog post deleted successfully",
-        });
+        toast.success('Blog deleted successfully');
       } catch (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        toast.error(error instanceof Error ? error.message : 'Failed to delete blog');
       }
     }
   };
@@ -115,213 +97,236 @@ const BlogManager = () => {
     setEditingBlog(null);
   };
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-br from-rose-50 to-teal-50 py-12">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">Loading blogs...</div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
-        <div className="py-8">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex justify-between items-center mb-8"
-            >
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Blog Management</h1>
-                <p className="text-gray-600 mt-2">
-                  {user?.role === 'admin' ? 'Manage all blog posts' : 'Manage your blog posts'}
-                </p>
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 to-teal-50 py-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Blog Management</h1>
+            <p className="text-gray-600">Manage blog posts and articles</p>
+          </motion.div>
+
+          <Card className="shadow-lg mb-8">
+            <CardHeader>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                <CardTitle className="flex items-center mb-4 md:mb-0">
+                  <FileText className="w-5 h-5 mr-2 text-rose-600" />
+                  All Blog Posts ({filteredBlogs.length})
+                </CardTitle>
+                <Button 
+                  className="bg-rose-600 hover:bg-rose-700"
+                  onClick={() => {
+                    resetForm();
+                    setIsCreateModalOpen(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Blog Post
+                </Button>
               </div>
-              
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={resetForm}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Blog Post
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingBlog ? 'Edit Blog Post' : 'Create New Blog Post'}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="title">Title</Label>
-                      <Input
-                        id="title"
-                        value={formData.title}
-                        onChange={(e) => setFormData({...formData, title: e.target.value})}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="excerpt">Excerpt</Label>
-                      <Textarea
-                        id="excerpt"
-                        value={formData.excerpt}
-                        onChange={(e) => setFormData({...formData, excerpt: e.target.value})}
-                        placeholder="Brief description of the post..."
-                        required
-                        rows={2}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="content">Content</Label>
-                      <Textarea
-                        id="content"
-                        value={formData.content}
-                        onChange={(e) => setFormData({...formData, content: e.target.value})}
-                        placeholder="Write your blog post content here..."
-                        required
-                        rows={8}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="category">Category</Label>
-                        <Input
-                          id="category"
-                          value={formData.category}
-                          onChange={(e) => setFormData({...formData, category: e.target.value})}
-                          placeholder="e.g., Wellness, Mental Health"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="readTime">Read Time</Label>
-                        <Input
-                          id="readTime"
-                          value={formData.readTime}
-                          onChange={(e) => setFormData({...formData, readTime: e.target.value})}
-                          placeholder="e.g., 5 min read"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="tags">Tags (comma separated)</Label>
-                      <Input
-                        id="tags"
-                        value={formData.tags}
-                        onChange={(e) => setFormData({...formData, tags: e.target.value})}
-                        placeholder="health, wellness, tips"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="image">Featured Image URL</Label>
-                      <Input
-                        id="image"
-                        value={formData.image}
-                        onChange={(e) => setFormData({...formData, image: e.target.value})}
-                        placeholder="https://example.com/image.jpg"
-                      />
-                    </div>
-
-                    <Button type="submit" className="w-full">
-                      {editingBlog ? 'Update Post' : 'Create Post'}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </motion.div>
-
-            {loading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600 mx-auto"></div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search blog posts..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {blogs.map((blog, index) => (
+
+              <div className="space-y-4">
+                {filteredBlogs.map((blog, index) => (
                   <motion.div
                     key={blog._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                   >
-                    <Card className="shadow-lg hover:shadow-xl transition-shadow h-full">
-                      <div className="aspect-video bg-gray-200 rounded-t-lg overflow-hidden">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-16 h-16 bg-green-100 rounded-lg overflow-hidden">
                         <img
                           src={blog.image}
                           alt={blog.title}
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <CardHeader>
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="secondary">{blog.category}</Badge>
-                          <div className="text-sm text-gray-500">
-                            {blog.readTime}
-                          </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900 line-clamp-1">{blog.title}</h3>
+                        <p className="text-sm text-gray-600">By {blog.author}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant="outline">{blog.category}</Badge>
+                          <span className="text-sm text-gray-500">{blog.readTime}</span>
+                          <span className="text-sm text-gray-500">{blog.views} views</span>
                         </div>
-                        <CardTitle className="text-lg">{blog.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <p className="text-gray-600 text-sm line-clamp-2">{blog.excerpt}</p>
-                        
-                        <div className="text-sm text-gray-600">
-                          <div>By: {blog.author}</div>
-                          <div>Published: {new Date(blog.createdAt).toLocaleDateString()}</div>
-                        </div>
-
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <Eye className="w-4 h-4 mr-1" />
-                            {blog.views}
-                          </div>
-                          <div className="flex items-center">
-                            <Heart className="w-4 h-4 mr-1" />
-                            {blog.likes}
-                          </div>
-                        </div>
-
-                        {blog.tags && blog.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {blog.tags.slice(0, 3).map((tag, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex justify-between pt-4">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(blog)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(blog._id)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <div className="text-right mr-4">
+                        <p className="text-sm text-gray-500">
+                          {new Date(blog.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge className={blog.isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                        {blog.isPublished ? 'Published' : 'Draft'}
+                      </Badge>
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(blog)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDelete(blog._id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </motion.div>
                 ))}
               </div>
-            )}
+            </CardContent>
+          </Card>
 
-            {blogs.length === 0 && !loading && (
-              <div className="text-center py-12">
-                <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 text-lg">No blog posts found</p>
-                <p className="text-gray-500">Create your first blog post to get started</p>
-              </div>
-            )}
-          </div>
+          {isCreateModalOpen && (
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle>
+                  {editingBlog ? 'Edit Blog Post' : 'Create New Blog Post'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Blog Title *
+                    </label>
+                    <Input
+                      value={formData.title}
+                      onChange={(e) => setFormData({...formData, title: e.target.value})}
+                      placeholder="Enter blog title"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Excerpt *
+                    </label>
+                    <Textarea
+                      value={formData.excerpt}
+                      onChange={(e) => setFormData({...formData, excerpt: e.target.value})}
+                      placeholder="Brief description of the blog post"
+                      rows={3}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Content *
+                    </label>
+                    <Textarea
+                      value={formData.content}
+                      onChange={(e) => setFormData({...formData, content: e.target.value})}
+                      placeholder="Write your blog content here..."
+                      rows={8}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Category *
+                      </label>
+                      <Input
+                        value={formData.category}
+                        onChange={(e) => setFormData({...formData, category: e.target.value})}
+                        placeholder="e.g., Health Tips, Medical News"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Read Time
+                      </label>
+                      <Input
+                        value={formData.readTime}
+                        onChange={(e) => setFormData({...formData, readTime: e.target.value})}
+                        placeholder="e.g., 5 min read"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tags (comma separated)
+                    </label>
+                    <Input
+                      value={formData.tags}
+                      onChange={(e) => setFormData({...formData, tags: e.target.value})}
+                      placeholder="health, wellness, tips"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Featured Image URL
+                    </label>
+                    <Input
+                      value={formData.image}
+                      onChange={(e) => setFormData({...formData, image: e.target.value})}
+                      placeholder="Enter image URL"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-4">
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => {
+                        setIsCreateModalOpen(false);
+                        resetForm();
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-rose-600 hover:bg-rose-700">
+                      {editingBlog ? 'Update Blog Post' : 'Create Blog Post'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </Layout>

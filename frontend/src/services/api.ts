@@ -151,6 +151,23 @@ class ApiService {
     return this.delete(`/blogs/${id}`);
   }
 
+  // Activities endpoints
+  async getActivities() {
+    return this.get('/activities');
+  }
+
+  async createActivity(data: any) {
+    return this.post('/activities', data);
+  }
+
+  async updateActivity(id: string, data: any) {
+    return this.put(`/activities/${id}`, data);
+  }
+
+  async deleteActivity(id: string) {
+    return this.delete(`/activities/${id}`);
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}

@@ -4,16 +4,20 @@ import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Users, Calendar, TrendingUp, Settings, UserCheck, FileText, Stethoscope, User } from 'lucide-react';
+import { Users, Calendar, TrendingUp, Settings, UserCheck, FileText, Stethoscope, User, BookOpen, Edit } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useStats } from '../../hooks/useStats';
 import { useSpecialties } from '../../hooks/useSpecialties';
 import { useDoctors } from '../../hooks/useDoctors';
+import { useActivities } from '../../hooks/useActivities';
 
 const AdminDashboard = () => {
   const { stats, loading: statsLoading } = useStats();
   const { specialties } = useSpecialties();
   const { doctors } = useDoctors();
+  const { activities, loading: activitiesLoading } = useActivities();
+
+  const recentActivities = activities.slice(0, 5);
 
   return (
     <Layout>
@@ -87,23 +91,41 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Card className="shadow-lg">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Recent Activities</CardTitle>
+                  <Link to="/admin/activities">
+                    <Button variant="outline" size="sm">
+                      <Edit className="w-4 h-4 mr-2" />
+                      Manage
+                    </Button>
+                  </Link>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map((item) => (
-                      <div key={item} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">New doctor registration</p>
-                          <p className="text-sm text-gray-600">Dr. Ahmed Hassan - Cardiology</p>
+                  {activitiesLoading ? (
+                    <div className="text-center text-gray-500">Loading activities...</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {recentActivities.length > 0 ? (
+                        recentActivities.map((activity) => (
+                          <div key={activity._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="font-medium">{activity.title}</p>
+                              <p className="text-sm text-gray-600">{activity.description}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-gray-600">
+                                {new Date(activity.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 py-8">
+                          No recent activities found
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">{item} hours ago</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -130,6 +152,18 @@ const AdminDashboard = () => {
                     <Button variant="outline" className="w-full">
                       <User className="w-4 h-4 mr-2" />
                       Manage Doctors
+                    </Button>
+                  </Link>
+                  <Link to="/admin/courses">
+                    <Button variant="outline" className="w-full">
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      Manage Courses
+                    </Button>
+                  </Link>
+                  <Link to="/admin/blogs">
+                    <Button variant="outline" className="w-full">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Manage Blogs
                     </Button>
                   </Link>
                   <Link to="/admin/stats">

@@ -12,6 +12,7 @@ const doctorRoutes = require('./routes/doctors');
 const appointmentRoutes = require('./routes/appointments');
 const courseRoutes = require('./routes/courses');
 const blogRoutes = require('./routes/blogs');
+const activityRoutes = require('./routes/activities');
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +34,7 @@ app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/blogs', blogRoutes);
+app.use('/api/activities', activityRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
