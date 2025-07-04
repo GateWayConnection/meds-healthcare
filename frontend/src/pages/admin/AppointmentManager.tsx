@@ -1,34 +1,42 @@
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Clock, User, Phone, Mail, CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Calendar, User, Phone, Mail } from 'lucide-react';
 import { useAppointments } from '../../hooks/useAppointments';
 import { toast } from '@/hooks/use-toast';
 
 const AppointmentManager = () => {
-  const { appointments, loading, updateAppointmentStatus } = useAppointments();
-  const [filterStatus, setFilterStatus] = useState('all');
+  const { appointments, loading, updateAppointmentStatus, refetch } = useAppointments();
 
-  const filteredAppointments = appointments.filter(appointment => {
-    if (filterStatus === 'all') return true;
-    return appointment.status === filterStatus;
-  });
+  useEffect(() => {
+    refetch();
+  }, []);
 
-  const handleStatusChange = async (appointmentId: string, newStatus: string) => {
+  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
     try {
       await updateAppointmentStatus(appointmentId, newStatus);
-      toast({ 
-        title: "Appointment Updated", 
-        description: `Appointment has been ${newStatus}` 
-      });
+      
+      if (newStatus === 'confirmed') {
+        toast({ 
+          title: "Appointment Approved!", 
+          description: "Confirmation email sent to patient" 
+        });
+      } else if (newStatus === 'cancelled') {
+        toast({ 
+          title: "Appointment Rejected", 
+          description: "Patient has been notified" 
+        });
+      }
+      
+      // Refresh the appointments list
+      refetch();
     } catch (error) {
       toast({ 
         title: "Error", 
-        description: "Failed to update appointment", 
+        description: "Failed to update appointment status", 
         variant: "destructive" 
       });
     }
@@ -37,10 +45,17 @@ const AppointmentManager = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-yellow-100 text-yellow-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'confirmed': return <CheckCircle className="w-4 h-4" />;
+      case 'cancelled': return <XCircle className="w-4 h-4" />;
+      default: return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -59,113 +74,109 @@ const AppointmentManager = () => {
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Appointment Management</h1>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Appointments</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-            </SelectContent>
-          </Select>
+          <Button onClick={refetch} variant="outline">
+            Refresh
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredAppointments.map((appointment) => (
-            <Card key={appointment._id} className="shadow-lg">
+        <div className="grid grid-cols-1 gap-6">
+          {appointments.map((appointment) => (
+            <Card key={appointment._id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="flex items-center text-lg">
-                    <User className="w-5 h-5 mr-2" />
-                    {appointment.patientName}
-                  </CardTitle>
-                  <Badge className={getStatusColor(appointment.status)}>
-                    {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                  </Badge>
-                </div>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <User className="w-5 h-5 text-primary" />
+                    <span>{appointment.patientName}</span>
+                    <Badge className={getStatusColor(appointment.status)}>
+                      <div className="flex items-center space-x-1">
+                        {getStatusIcon(appointment.status)}
+                        <span className="capitalize">{appointment.status}</span>
+                      </div>
+                    </Badge>
+                  </div>
+                  <div className="flex space-x-2">
+                    {appointment.status === 'pending' && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => handleStatusUpdate(appointment._id, 'confirmed')}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleStatusUpdate(appointment._id, 'cancelled')}
+                        >
+                          <XCircle className="w-4 h-4 mr-1" />
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                    {appointment.status === 'confirmed' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleStatusUpdate(appointment._id, 'completed')}
+                      >
+                        Mark Complete
+                      </Button>
+                    )}
+                  </div>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center">
-                    <Mail className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-sm">{appointment.patientEmail}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Mail className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm">{appointment.patientEmail}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Phone className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm">{appointment.patientPhone}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm">
+                        {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.appointmentTime}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-sm">{appointment.patientPhone}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-sm">
-                      {new Date(appointment.appointmentDate).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-sm">{appointment.appointmentTime}</span>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-sm font-medium">Doctor:</p>
+                      <p className="text-sm text-gray-600">{appointment.doctorId.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Specialty:</p>
+                      <p className="text-sm text-gray-600">{appointment.specialtyId.name}</p>
+                    </div>
+                    {appointment.notes && (
+                      <div>
+                        <p className="text-sm font-medium">Notes:</p>
+                        <p className="text-sm text-gray-600">{appointment.notes}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Doctor: {appointment.doctorId?.name}</p>
-                  <p className="text-sm font-medium">Specialty: {appointment.specialtyId?.name}</p>
-                  {appointment.notes && (
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Notes:</span> {appointment.notes}
-                    </p>
-                  )}
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-xs text-gray-500">
+                    Booked on: {new Date(appointment.createdAt).toLocaleString()}
+                  </p>
                 </div>
-
-                {appointment.status === 'pending' && (
-                  <div className="flex space-x-2 pt-4">
-                    <Button
-                      onClick={() => handleStatusChange(appointment._id, 'confirmed')}
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Approve
-                    </Button>
-                    <Button
-                      onClick={() => handleStatusChange(appointment._id, 'cancelled')}
-                      variant="destructive"
-                      className="flex-1"
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Reject
-                    </Button>
-                  </div>
-                )}
-
-                {appointment.status !== 'pending' && appointment.status !== 'completed' && (
-                  <div className="pt-4">
-                    <Select
-                      value={appointment.status}
-                      onValueChange={(value) => handleStatusChange(appointment._id, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {filteredAppointments.length === 0 && (
+        {appointments.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No appointments found.</p>
-            <p className="text-gray-500 mt-2">Appointments will appear here when patients book them.</p>
+            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments yet</h3>
+            <p className="text-gray-500">Appointments will appear here when patients book them.</p>
           </div>
         )}
       </div>

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Trash2, Edit, Plus } from 'lucide-react';
+import { Trash2, Edit, Plus, BookOpen } from 'lucide-react';
 import { useCategories } from '../../hooks/useCategories';
 import { toast } from '@/hooks/use-toast';
 
@@ -85,7 +85,7 @@ const CategoryManager = () => {
     <Layout>
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Category Management</h1>
+          <h1 className="text-3xl font-bold">Academic Categories Management</h1>
           <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
               <Button>
@@ -101,11 +101,12 @@ const CategoryManager = () => {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="name">Category Name</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g., Cardiovascular Health"
                     required
                   />
                 </div>
@@ -115,16 +116,17 @@ const CategoryManager = () => {
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Brief description of this category"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="icon">Icon (optional)</Label>
+                  <Label htmlFor="icon">Icon Name (optional)</Label>
                   <Input
                     id="icon"
                     value={formData.icon}
                     onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                    placeholder="e.g., heart, brain, leaf"
+                    placeholder="e.g., heart, brain, activity"
                   />
                 </div>
                 <Button type="submit" className="w-full">
@@ -137,10 +139,13 @@ const CategoryManager = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((category) => (
-            <Card key={category._id}>
+            <Card key={category._id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>{category.name}</span>
+                  <div className="flex items-center space-x-2">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                    <span>{category.name}</span>
+                  </div>
                   <div className="flex space-x-2">
                     <Button
                       variant="outline"
@@ -160,14 +165,28 @@ const CategoryManager = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">{category.description}</p>
+                <p className="text-gray-600 mb-2">{category.description}</p>
                 {category.icon && (
-                  <p className="text-sm text-gray-500 mt-2">Icon: {category.icon}</p>
+                  <p className="text-sm text-gray-500">Icon: {category.icon}</p>
                 )}
+                <p className="text-xs text-gray-500 mt-2">
+                  Status: {category.isActive ? 'Active' : 'Inactive'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Created: {new Date(category.createdAt).toLocaleDateString()}
+                </p>
               </CardContent>
             </Card>
           ))}
         </div>
+
+        {categories.length === 0 && (
+          <div className="text-center py-12">
+            <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No categories yet</h3>
+            <p className="text-gray-500 mb-4">Create your first academic category to get started.</p>
+          </div>
+        )}
       </div>
     </Layout>
   );

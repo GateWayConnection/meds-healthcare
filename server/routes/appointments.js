@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const Appointment = require('../models/Appointment');
@@ -135,15 +134,93 @@ router.put('/:id', authenticate, async (req, res) => {
 
     const { status, notes } = req.body;
     
-    const appointment = await Appointment.findById(req.params.id);
+    const appointment = await Appointment.findById(req.params.id)
+      .populate('doctorId', 'name specialty')
+      .populate('specialtyId', 'name');
+      
     if (!appointment) {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
+    const oldStatus = appointment.status;
     if (status !== undefined) appointment.status = status;
     if (notes !== undefined) appointment.notes = notes;
 
     await appointment.save();
+    
+    // Send email notification when status changes to confirmed
+    if (status === 'confirmed' && oldStatus !== 'confirmed') {
+      const mailOptions = {
+        from: 'byiringirourban20@gmail.com',
+        to: appointment.patientEmail,
+        subject: 'Appointment Confirmed - MEDS Healthcare',
+        html: `
+          <h2>🎉 Your Appointment Has Been Confirmed!</h2>
+          <p>Dear ${appointment.patientName},</p>
+          <p>Great news! Your appointment has been approved and confirmed.</p>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3>📅 Appointment Details:</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li><strong>👨‍⚕️ Doctor:</strong> ${appointment.doctorId.name}</li>
+              <li><strong>🏥 Specialty:</strong> ${appointment.specialtyId.name}</li>
+              <li><strong>📅 Date:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()}</li>
+              <li><strong>⏰ Time:</strong> ${appointment.appointmentTime}</li>
+              <li><strong>📞 Phone:</strong> ${appointment.patientPhone}</li>
+            </ul>
+          </div>
+          
+          ${appointment.notes ? `<p><strong>📝 Additional Notes:</strong> ${appointment.notes}</p>` : ''}
+          
+          <p><strong>⚠️ Important Reminders:</strong></p>
+          <ul>
+            <li>Please arrive 15 minutes before your scheduled time</li>
+            <li>Bring a valid ID and insurance card</li>
+            <li>If you need to reschedule, please contact us at least 24 hours in advance</li>
+          </ul>
+          
+          <p>We look forward to seeing you!</p>
+          <p>Best regards,<br/>MEDS Healthcare Team</p>
+        `
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log('Confirmation email sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+      }
+    }
+
+    // Send rejection email when status changes to cancelled
+    if (status === 'cancelled' && oldStatus !== 'cancelled') {
+      const mailOptions = {
+        from: 'byiringirourban20@gmail.com',
+        to: appointment.patientEmail,
+        subject: 'Appointment Update - MEDS Healthcare',
+        html: `
+          <h2>Appointment Status Update</h2>
+          <p>Dear ${appointment.patientName},</p>
+          <p>We regret to inform you that your appointment scheduled for ${new Date(appointment.appointmentDate).toLocaleDateString()} at ${appointment.appointmentTime} has been cancelled.</p>
+          
+          <p>Please contact us to reschedule your appointment:</p>
+          <ul>
+            <li>📞 Phone: +1-234-567-8900</li>
+            <li>📧 Email: info@medshealthcare.com</li>
+          </ul>
+          
+          <p>We apologize for any inconvenience.</p>
+          <p>Best regards,<br/>MEDS Healthcare Team</p>
+        `
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log('Cancellation email sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send cancellation email:', emailError);
+      }
+    }
     
     const populatedAppointment = await Appointment.findById(appointment._id)
       .populate('doctorId', 'name specialty')
