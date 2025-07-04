@@ -22,6 +22,11 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/doctors', require('./routes/doctors'));
 app.use('/api/specialties', require('./routes/specialties'));
 app.use('/api/appointments', require('./routes/appointments'));
+app.use('/api/categories', require('./routes/categories'));
+app.use('/api/courses', require('./routes/courses'));
+app.use('/api/blogs', require('./routes/blogs'));
+app.use('/api/activities', require('./routes/activities'));
+app.use('/api/stats', require('./routes/stats'));
 
 // Health check route
 app.get('/api/health', (req, res) => {

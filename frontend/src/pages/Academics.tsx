@@ -72,8 +72,7 @@ const Academics = () => {
                 key={category._id} 
                 className="hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
                 onClick={() => {
-                  // Navigate to category details - implement this later with router
-                  console.log('Navigate to category:', category._id);
+                  window.location.href = `/academics/category/${category._id}`;
                 }}
               >
                 <CardHeader className="text-center pb-4">

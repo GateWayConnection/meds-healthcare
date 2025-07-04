@@ -20,6 +20,7 @@ import Register from "./pages/Register";
 // New Feature Pages
 import Chat from "./pages/Chat";
 import Academics from "./pages/Academics";
+import CategoryGuides from "./pages/CategoryGuides";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 
@@ -72,6 +73,7 @@ const App = () => (
                 {/* New Feature Routes */}
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/academics" element={<Academics />} />
+                <Route path="/academics/category/:categoryId" element={<CategoryGuides />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:id" element={<BlogPost />} />
                 

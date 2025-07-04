@@ -7,7 +7,13 @@ const { authenticate } = require('../middleware/auth');
 // GET /api/courses - Get all active health guides
 router.get('/', async (req, res) => {
   try {
-    const courses = await Course.find({ isActive: true }).sort({ createdAt: -1 });
+    const { categoryId } = req.query;
+    const filter = { isActive: true };
+    if (categoryId) filter.categoryId = categoryId;
+    
+    const courses = await Course.find(filter)
+      .populate('categoryId', 'name description')
+      .sort({ createdAt: -1 });
     res.json(courses);
   } catch (error) {
     console.error('Error fetching health guides:', error);
@@ -22,7 +28,9 @@ router.get('/all', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Access denied. Admin only.' });
     }
     
-    const courses = await Course.find().sort({ createdAt: -1 });
+    const courses = await Course.find()
+      .populate('categoryId', 'name description')
+      .sort({ createdAt: -1 });
     res.json(courses);
   } catch (error) {
     console.error('Error fetching all health guides:', error);
@@ -61,23 +69,31 @@ router.post('/', authenticate, async (req, res) => {
       title, 
       summary, 
       content, 
-      category, 
+      categoryId, 
       image, 
       videoUrl, 
       videoTitle 
     } = req.body;
     
-    if (!title || !summary || !content || !category) {
+    if (!title || !summary || !content || !categoryId) {
       return res.status(400).json({ 
         error: 'Title, summary, content, and category are required' 
       });
+    }
+
+    // Get category name for backward compatibility
+    const Category = require('../models/Category');
+    const category = await Category.findById(categoryId);
+    if (!category) {
+      return res.status(400).json({ error: 'Invalid category' });
     }
 
     const course = new Course({
       title: title.trim(),
       summary: summary.trim(),
       content: content.trim(),
-      category: category.trim(),
+      categoryId,
+      category: category.name,
       image: image || '/placeholder.svg',
       videoUrl: videoUrl || '',
       videoTitle: videoTitle || ''
@@ -107,7 +123,7 @@ router.put('/:id', authenticate, async (req, res) => {
       title, 
       summary, 
       content, 
-      category, 
+      categoryId, 
       image, 
       videoUrl, 
       videoTitle,
@@ -117,7 +133,15 @@ router.put('/:id', authenticate, async (req, res) => {
     if (title !== undefined) course.title = title.trim();
     if (summary !== undefined) course.summary = summary.trim();
     if (content !== undefined) course.content = content.trim();
-    if (category !== undefined) course.category = category.trim();
+    if (categoryId !== undefined) {
+      const Category = require('../models/Category');
+      const category = await Category.findById(categoryId);
+      if (!category) {
+        return res.status(400).json({ error: 'Invalid category' });
+      }
+      course.categoryId = categoryId;
+      course.category = category.name;
+    }
     if (image !== undefined) course.image = image;
     if (videoUrl !== undefined) course.videoUrl = videoUrl;
     if (videoTitle !== undefined) course.videoTitle = videoTitle;

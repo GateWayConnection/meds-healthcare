@@ -16,17 +16,14 @@ const courseSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true
+  },
   category: {
     type: String,
-    required: true,
-    enum: [
-      'Disease Prevention',
-      'Nutrition & Wellness', 
-      'First Aid Basics',
-      'Maternal & Child Health',
-      'Mental Health Support',
-      'Chronic Illness Management'
-    ]
+    required: true
   },
   image: {
     type: String,

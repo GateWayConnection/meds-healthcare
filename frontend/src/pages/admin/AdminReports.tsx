@@ -1,26 +1,74 @@
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { FileText, Download, Calendar, TrendingUp, Users, Activity } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Calendar, User, Phone, Mail, FileText } from 'lucide-react';
+import { useAppointments } from '../../hooks/useAppointments';
+import { toast } from '@/hooks/use-toast';
 
 const AdminReports = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-  const [selectedReport, setSelectedReport] = useState('');
+  const { appointments, loading, updateAppointmentStatus, refetch } = useAppointments();
 
-  const reportTypes = [
-    { id: 'appointments', name: 'Appointments Report', icon: Calendar },
-    { id: 'revenue', name: 'Revenue Report', icon: TrendingUp },
-    { id: 'users', name: 'User Analytics', icon: Users },
-    { id: 'performance', name: 'System Performance', icon: Activity }
-  ];
+  useEffect(() => {
+    refetch();
+  }, []);
 
-  const generateReport = () => {
-    console.log(`Generating ${selectedReport} report for ${selectedPeriod} period`);
+  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
+    try {
+      await updateAppointmentStatus(appointmentId, newStatus);
+      
+      if (newStatus === 'confirmed') {
+        toast({ 
+          title: "Appointment Approved!", 
+          description: "Confirmation email sent to patient" 
+        });
+      } else if (newStatus === 'cancelled') {
+        toast({ 
+          title: "Appointment Rejected", 
+          description: "Patient has been notified" 
+        });
+      }
+      
+      // Refresh the appointments list
+      refetch();
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to update appointment status", 
+        variant: "destructive" 
+      });
+    }
   };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-yellow-100 text-yellow-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'confirmed': return <CheckCircle className="w-4 h-4" />;
+      case 'cancelled': return <XCircle className="w-4 h-4" />;
+      default: return <Clock className="w-4 h-4" />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -31,106 +79,166 @@ const AdminReports = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Reports & Analytics</h1>
-            <p className="text-gray-600">Generate and view system reports</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Appointment Management Reports</h1>
+            <p className="text-gray-600">Review and manage all appointment requests</p>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <Card className="shadow-lg mb-8">
+          <div className="grid grid-cols-1 gap-6">
+            {appointments.map((appointment) => (
+              <Card key={appointment._id} className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <FileText className="w-5 h-5 mr-2 text-rose-600" />
-                    Generate Report
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <User className="w-5 h-5 text-primary" />
+                      <span>{appointment.patientName}</span>
+                      <Badge className={getStatusColor(appointment.status)}>
+                        <div className="flex items-center space-x-1">
+                          {getStatusIcon(appointment.status)}
+                          <span className="capitalize">{appointment.status}</span>
+                        </div>
+                      </Badge>
+                    </div>
+                    <div className="flex space-x-2">
+                      {appointment.status === 'pending' && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => handleStatusUpdate(appointment._id, 'confirmed')}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleStatusUpdate(appointment._id, 'cancelled')}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {appointment.status === 'confirmed' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleStatusUpdate(appointment._id, 'completed')}
+                        >
+                          Mark Complete
+                        </Button>
+                      )}
+                    </div>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Report Type</label>
-                    <Select value={selectedReport} onValueChange={setSelectedReport}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select report type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {reportTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Time Period</label>
-                    <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="yearly">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button 
-                    onClick={generateReport}
-                    disabled={!selectedReport}
-                    className="w-full bg-rose-600 hover:bg-rose-700"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Generate & Download Report
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle>Recent Reports</CardTitle>
-                </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4].map((item) => (
-                      <div key={item} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">Monthly Appointments Report</p>
-                          <p className="text-sm text-gray-600">Generated on Dec {item}, 2024</p>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          <Download className="w-4 h-4" />
-                        </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Mail className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm">{appointment.patientEmail}</span>
                       </div>
-                    ))}
+                      <div className="flex items-center space-x-2">
+                        <Phone className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm">{appointment.patientPhone}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm">
+                          {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.appointmentTime}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-sm font-medium">Doctor:</p>
+                        <p className="text-sm text-gray-600">{appointment.doctorId.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Specialty:</p>
+                        <p className="text-sm text-gray-600">{appointment.specialtyId.name}</p>
+                      </div>
+                      {appointment.notes && (
+                        <div>
+                          <p className="text-sm font-medium">Notes:</p>
+                          <p className="text-sm text-gray-600">{appointment.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-xs text-gray-500">
+                      Booked on: {new Date(appointment.createdAt).toLocaleString()}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            ))}
+          </div>
 
-            <div className="space-y-6">
-              {reportTypes.map((type) => {
-                const IconComponent = type.icon;
-                return (
-                  <Card key={type.id} className="shadow-lg">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{type.name}</p>
-                          <p className="text-sm text-gray-600 mt-1">View detailed analytics</p>
-                        </div>
-                        <IconComponent className="w-8 h-8 text-rose-600" />
-                      </div>
-                      <Button variant="outline" className="w-full mt-4">
-                        View Details
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+          {appointments.length === 0 && (
+            <div className="text-center py-12">
+              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments yet</h3>
+              <p className="text-gray-500">Appointments will appear here when patients book them.</p>
             </div>
+          )}
+
+          {/* Summary Stats */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Appointments</p>
+                    <p className="text-2xl font-bold text-gray-900">{appointments.length}</p>
+                  </div>
+                  <Calendar className="w-8 h-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {appointments.filter(a => a.status === 'pending').length}
+                    </p>
+                  </div>
+                  <Clock className="w-8 h-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Confirmed</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {appointments.filter(a => a.status === 'confirmed').length}
+                    </p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {appointments.filter(a => a.status === 'completed').length}
+                    </p>
+                  </div>
+                  <FileText className="w-8 h-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

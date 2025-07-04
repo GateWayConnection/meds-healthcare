@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useCourses } from '../../hooks/useCourses';
+import { useCategories } from '../../hooks/useCategories';
 import { useToast } from '@/components/ui/use-toast';
 
 const CourseManager = () => {
@@ -25,7 +26,7 @@ const CourseManager = () => {
     title: '',
     summary: '',
     content: '',
-    category: '',
+    categoryId: '',
     image: '',
     videoUrl: '',
     videoTitle: '',
@@ -36,14 +37,7 @@ const CourseManager = () => {
     fetchAllCourses();
   }, []);
 
-  const categories = [
-    'Disease Prevention',
-    'Nutrition & Wellness', 
-    'First Aid Basics',
-    'Maternal & Child Health',
-    'Mental Health Support',
-    'Chronic Illness Management'
-  ];
+  const { categories } = useCategories();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,7 +72,7 @@ const CourseManager = () => {
       title: course.title,
       summary: course.summary,
       content: course.content,
-      category: course.category,
+      categoryId: course.categoryId?._id || course.categoryId || '',
       image: course.image,
       videoUrl: course.videoUrl,
       videoTitle: course.videoTitle,
@@ -112,7 +106,7 @@ const CourseManager = () => {
       title: '',
       summary: '',
       content: '',
-      category: '',
+      categoryId: '',
       image: '',
       videoUrl: '',
       videoTitle: '',
@@ -180,14 +174,14 @@ const CourseManager = () => {
                       
                       <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>
-                        <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+                        <Select value={formData.categoryId} onValueChange={(value) => setFormData({...formData, categoryId: value})}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
                             {categories.map((category) => (
-                              <SelectItem key={category} value={category}>
-                                {category}
+                              <SelectItem key={category._id} value={category._id}>
+                                {category.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -292,8 +286,10 @@ const CourseManager = () => {
                     />
                   </div>
                   <CardHeader>
-                    <div className="flex items-center justify-between mb-2">
-                      <Badge variant="secondary">{course.category}</Badge>
+                  <div className="flex items-center justify-between mb-2">
+                      <Badge variant="secondary">
+                        {course.categoryId?.name || course.category}
+                      </Badge>
                       <Badge variant={course.isActive ? 'default' : 'destructive'}>
                         {course.isActive ? 'Active' : 'Inactive'}
                       </Badge>
