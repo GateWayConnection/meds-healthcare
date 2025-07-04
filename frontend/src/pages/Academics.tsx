@@ -1,51 +1,64 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, BookOpen, Video, Image, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { BookOpen, Eye, Play, ExternalLink } from 'lucide-react';
+import { useCategories } from '../hooks/useCategories';
 import { useCourses } from '../hooks/useCourses';
 
 const Academics = () => {
-  const { courses, loading } = useCourses();
-  const [selectedGuide, setSelectedGuide] = useState(null);
+  const navigate = useNavigate();
+  const { categories, loading: categoriesLoading } = useCategories();
+  const { courses, loading: coursesLoading } = useCourses();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
 
-  const categories = [
-    'Disease Prevention',
-    'Nutrition & Wellness', 
-    'First Aid Basics',
-    'Maternal & Child Health',
-    'Mental Health Support',
-    'Chronic Illness Management'
-  ];
+  const filteredCourses = courses.filter(course => {
+    const matchesCategory = !selectedCategory || course.category === selectedCategory;
+    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         course.summary.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'all' || 
+                       (filterType === 'video' && course.videoUrl) ||
+                       (filterType === 'text' && !course.videoUrl);
+    
+    return matchesCategory && matchesSearch && matchesType;
+  });
 
-  const getCategoryColor = (category) => {
-    const colors = {
-      'Disease Prevention': 'bg-red-100 text-red-800',
-      'Nutrition & Wellness': 'bg-green-100 text-green-800',
-      'First Aid Basics': 'bg-blue-100 text-blue-800',
-      'Maternal & Child Health': 'bg-pink-100 text-pink-800',
-      'Mental Health Support': 'bg-purple-100 text-purple-800',
-      'Chronic Illness Management': 'bg-orange-100 text-orange-800'
-    };
-    return colors[category] || 'bg-gray-100 text-gray-800';
+  const handleCategoryClick = (categoryName: string) => {
+    setSelectedCategory(categoryName);
   };
 
-  const handleGuideClick = async (guide) => {
-    setSelectedGuide(guide);
-    // Increment views (you can implement this in the backend if needed)
+  const handleBackToCategories = () => {
+    setSelectedCategory(null);
+    setSearchTerm('');
+    setFilterType('all');
   };
 
-  if (loading) {
+  const getTypeIcon = (course: any) => {
+    if (course.videoUrl) return <Video className="w-4 h-4" />;
+    if (course.image && course.image !== '/placeholder.svg') return <Image className="w-4 h-4" />;
+    return <FileText className="w-4 h-4" />;
+  };
+
+  const getTypeLabel = (course: any) => {
+    if (course.videoUrl) return 'Video';
+    if (course.image && course.image !== '/placeholder.svg') return 'Image';
+    return 'Text';
+  };
+
+  if (categoriesLoading || coursesLoading) {
     return (
       <Layout>
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading health guides...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading educational content...</p>
           </div>
         </div>
       </Layout>
@@ -62,161 +75,156 @@ const Academics = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-center mb-12"
             >
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">Patient Health Education Guides</h1>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                {selectedCategory ? selectedCategory : 'Health Education Center'}
+              </h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Simple, practical health information to help you and your family stay healthy and safe
+                {selectedCategory 
+                  ? 'Explore educational resources in this category'
+                  : 'Browse our comprehensive health education categories to learn more about wellness and medical topics'
+                }
               </p>
             </motion.div>
 
-            {/* Category Sections */}
-            {categories.map((category) => {
-              const categoryGuides = courses.filter(guide => guide.category === category && guide.isActive);
-              
-              if (categoryGuides.length === 0) return null;
-
-              return (
-                <motion.div
-                  key={category}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-12"
-                >
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                    <BookOpen className="w-6 h-6 mr-3 text-rose-600" />
-                    {category}
-                  </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {categoryGuides.map((guide, index) => (
-                      <motion.div
-                        key={guide._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                      >
-                        <Card className="shadow-lg hover:shadow-xl transition-shadow h-full cursor-pointer" onClick={() => handleGuideClick(guide)}>
-                          <div className="aspect-video bg-gray-200 rounded-t-lg overflow-hidden relative">
-                            <img
-                              src={guide.image || '/placeholder.svg'}
-                              alt={guide.title}
-                              className="w-full h-full object-cover"
-                            />
-                            {guide.videoUrl && (
-                              <div className="absolute top-2 right-2">
-                                <Badge className="bg-black bg-opacity-75 text-white">
-                                  <Play className="w-3 h-3 mr-1" />
-                                  Video
-                                </Badge>
-                              </div>
-                            )}
-                          </div>
-                          <CardHeader>
-                            <div className="flex items-center justify-between mb-2">
-                              <Badge className={getCategoryColor(guide.category)}>
-                                {guide.category}
-                              </Badge>
-                            </div>
-                            <CardTitle className="text-xl hover:text-rose-600 transition-colors">
-                              {guide.title}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            <p className="text-gray-600 line-clamp-3">{guide.summary}</p>
-                            
-                            <div className="flex items-center justify-between pt-2">
-                              <div className="flex items-center text-sm text-gray-500">
-                                <Eye className="w-4 h-4 mr-1" />
-                                {guide.views} views
-                              </div>
-                              <Button size="sm" variant="outline">
-                                Read Guide
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
+            {selectedCategory && (
+              <div className="mb-6">
+                <Button onClick={handleBackToCategories} variant="outline" className="mb-4">
+                  ← Back to Categories
+                </Button>
+                
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search guides..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                </motion.div>
-              );
-            })}
+                  <div className="flex gap-2">
+                    <Button
+                      variant={filterType === 'all' ? 'default' : 'outline'}
+                      onClick={() => setFilterType('all')}
+                      size="sm"
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={filterType === 'video' ? 'default' : 'outline'}
+                      onClick={() => setFilterType('video')}
+                      size="sm"
+                    >
+                      <Video className="w-4 h-4 mr-1" />
+                      Video
+                    </Button>
+                    <Button
+                      variant={filterType === 'text' ? 'default' : 'outline'}
+                      onClick={() => setFilterType('text')}
+                      size="sm"
+                    >
+                      <FileText className="w-4 h-4 mr-1" />
+                      Text
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {courses.filter(guide => guide.isActive).length === 0 && (
+            {!selectedCategory ? (
+              // Show Categories
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {categories.map((category, index) => (
+                  <motion.div
+                    key={category._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card 
+                      className="shadow-lg hover:shadow-xl transition-shadow h-full cursor-pointer"
+                      onClick={() => handleCategoryClick(category.name)}
+                    >
+                      <CardHeader>
+                        <CardTitle className="flex items-center text-xl">
+                          <BookOpen className="w-6 h-6 mr-3 text-blue-600" />
+                          {category.name}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-600 mb-4">{category.description}</p>
+                        <div className="flex items-center justify-between">
+                          <Badge variant="secondary">
+                            {courses.filter(c => c.category === category.name).length} guides
+                          </Badge>
+                          <Button size="sm" variant="outline">
+                            Explore →
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              // Show Guides for Selected Category
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCourses.map((course, index) => (
+                  <motion.div
+                    key={course._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="shadow-lg hover:shadow-xl transition-shadow h-full">
+                      <div className="aspect-video bg-gray-200 rounded-t-lg overflow-hidden">
+                        <img
+                          src={course.image}
+                          alt={course.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <CardHeader>
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            {getTypeIcon(course)}
+                            {getTypeLabel(course)}
+                          </Badge>
+                          <Badge variant="secondary">{course.category}</Badge>
+                        </div>
+                        <CardTitle className="text-lg">{course.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-600 mb-4">{course.summary}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">{course.views} views</span>
+                          <Button 
+                            size="sm"
+                            onClick={() => navigate(`/academics/${course._id}`)}
+                          >
+                            View Guide
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {selectedCategory && filteredCourses.length === 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="text-center py-12"
               >
-                <p className="text-gray-600 text-lg">No health guides available at the moment.</p>
-                <p className="text-gray-500 mt-2">Check back later for new educational content.</p>
+                <p className="text-gray-600 text-lg">No guides found matching your criteria.</p>
+                <p className="text-gray-500 mt-2">Try adjusting your search or filter options.</p>
               </motion.div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Guide Detail Dialog */}
-      <Dialog open={selectedGuide !== null} onOpenChange={() => setSelectedGuide(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          {selectedGuide && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge className={getCategoryColor(selectedGuide.category)}>
-                    {selectedGuide.category}
-                  </Badge>
-                </div>
-                <DialogTitle className="text-2xl">{selectedGuide.title}</DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-6">
-                {selectedGuide.image && (
-                  <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
-                    <img
-                      src={selectedGuide.image}
-                      alt={selectedGuide.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-2">Summary</h3>
-                  <p className="text-gray-700">{selectedGuide.summary}</p>
-                </div>
-                
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">Guide Content</h3>
-                  <div className="prose prose-gray max-w-none">
-                    <p className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                      {selectedGuide.content}
-                    </p>
-                  </div>
-                </div>
-                
-                {selectedGuide.videoUrl && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
-                      <Play className="w-4 h-4 mr-2" />
-                      Related Video
-                    </h3>
-                    <p className="text-gray-600 mb-3">
-                      {selectedGuide.videoTitle || 'Educational Video'}
-                    </p>
-                    <Button
-                      onClick={() => window.open(selectedGuide.videoUrl, '_blank')}
-                      className="flex items-center gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Watch Video
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </Layout>
   );
 };

@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -35,6 +34,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/categories', require('./routes/categories'));
 
 // Health check route
 app.get('/api/health', (req, res) => {

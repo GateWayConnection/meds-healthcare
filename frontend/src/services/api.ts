@@ -1,4 +1,3 @@
-
 class ApiService {
   private baseURL: string;
 
@@ -184,6 +183,27 @@ class ApiService {
 
   async deleteActivity(id: string) {
     return this.delete(`/activities/${id}`);
+  }
+
+  // Categories endpoints
+  async getCategories() {
+    return this.get('/categories');
+  }
+
+  async getAllCategories() {
+    return this.get('/categories/all');
+  }
+
+  async createCategory(data: any) {
+    return this.post('/categories', data);
+  }
+
+  async updateCategory(id: string, data: any) {
+    return this.put(`/categories/${id}`, data);
+  }
+
+  async deleteCategory(id: string) {
+    return this.delete(`/categories/${id}`);
   }
 
   private async request<T>(

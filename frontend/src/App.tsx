@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -44,6 +43,8 @@ import DoctorManager from "./pages/admin/DoctorManager";
 import StatsManager from "./pages/admin/StatsManager";
 import CourseManager from "./pages/admin/CourseManager";
 import BlogManager from "./pages/admin/BlogManager";
+import CategoryManager from "./pages/admin/CategoryManager";
+import AppointmentManager from "./pages/admin/AppointmentManager";
 
 import NotFound from "./pages/NotFound";
 
@@ -93,6 +94,8 @@ const App = () => (
                 <Route path="/admin/stats" element={<StatsManager />} />
                 <Route path="/admin/courses" element={<CourseManager />} />
                 <Route path="/admin/blogs" element={<BlogManager />} />
+                <Route path="/admin/categories" element={<CategoryManager />} />
+                <Route path="/admin/appointments" element={<AppointmentManager />} />
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>
