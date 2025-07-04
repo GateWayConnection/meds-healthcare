@@ -317,7 +317,7 @@ const DoctorManager = () => {
                     <SelectValue placeholder="Filter by specialty" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Specialties</SelectItem>
+                    <SelectItem value="All">All Specialties</SelectItem>
                     {specialties.map((specialty: any) => (
                       <SelectItem key={specialty._id} value={specialty.name}>
                         {specialty.name}

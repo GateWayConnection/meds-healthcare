@@ -141,7 +141,7 @@ const FindDoctor = () => {
                       <SelectValue placeholder="All Specialties" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Specialties</SelectItem>
+                      <SelectItem value="All">All Specialties</SelectItem>
                       {specialties.map(specialty => (
                         <SelectItem key={specialty._id} value={specialty.name}>
                           {specialty.name}
@@ -254,7 +254,7 @@ const FindDoctor = () => {
               >
                 <p className="text-gray-600 text-lg">No doctors found matching your criteria.</p>
                 <p className="text-gray-500 mt-2">Try adjusting your search or filters.</p>
-              </div>
+              </motion.div>
             )}
           </div>
         </div>
