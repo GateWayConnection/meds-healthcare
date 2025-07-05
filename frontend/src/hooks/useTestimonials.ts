@@ -24,8 +24,7 @@ export const useTestimonials = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/testimonials');
-      const data = await response.json();
+      const data = await apiService.getTestimonials();
       setTestimonials(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch testimonials');
@@ -37,21 +36,7 @@ export const useTestimonials = () => {
   const createTestimonial = async (testimonialData: Partial<Testimonial>) => {
     try {
       setError(null);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/testimonials', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(testimonialData)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create testimonial');
-      }
-      
-      const newTestimonial = await response.json();
+      const newTestimonial = await apiService.createTestimonial(testimonialData);
       return newTestimonial;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create testimonial');

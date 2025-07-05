@@ -1,4 +1,3 @@
-
 class ApiService {
   private baseURL: string;
 
@@ -15,7 +14,7 @@ class ApiService {
     name: string;
     email: string;
     password: string;
-    phone: string; // Changed from phoneNumber to phone
+    phone: string;
     role: string;
     dateOfBirth?: string;
     specialty?: string;
@@ -210,6 +209,23 @@ class ApiService {
 
   async deleteCategory(id: string) {
     return this.delete(`/categories/${id}`);
+  }
+
+  // Testimonials endpoints
+  async getTestimonials() {
+    return this.get('/testimonials');
+  }
+
+  async createTestimonial(data: any) {
+    return this.post('/testimonials', data);
+  }
+
+  async approveTestimonial(id: string) {
+    return this.put(`/testimonials/${id}/approve`);
+  }
+
+  async deleteTestimonial(id: string) {
+    return this.delete(`/testimonials/${id}`);
   }
 
   private async request<T>(
