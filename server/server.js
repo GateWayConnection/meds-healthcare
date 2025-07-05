@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -12,6 +13,7 @@ const appointmentRoutes = require('./routes/appointments');
 const courseRoutes = require('./routes/courses');
 const blogRoutes = require('./routes/blogs');
 const activityRoutes = require('./routes/activities');
+const testimonialRoutes = require('./routes/testimonials');
 
 // Load environment variables
 dotenv.config();
@@ -34,6 +36,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/categories', require('./routes/categories'));
 
 // Health check route
