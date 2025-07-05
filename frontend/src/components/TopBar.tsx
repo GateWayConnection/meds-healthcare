@@ -1,132 +1,210 @@
 
-import React from 'react';
-import { Bell, HelpCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Phone, Mail, Bell, HelpCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import AccountSettings from './AccountSettings';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppointments } from '../hooks/useAppointments';
 
 const TopBar = () => {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const { user } = useAuth();
+  const { appointments } = useAppointments();
 
-  // Mock notifications - in real app, this would come from an API
-  const notifications = [
-    { id: 1, message: 'New appointment request from John Doe', time: '5 minutes ago', unread: true },
-    { id: 2, message: 'Appointment confirmed for tomorrow at 2 PM', time: '1 hour ago', unread: true },
-    { id: 3, message: 'Patient Sarah completed her treatment', time: '2 hours ago', unread: false },
-  ];
+  // Get user-specific notifications
+  const userNotifications = appointments.filter(apt => {
+    if (user?.role === 'patient') {
+      return apt.patientEmail === user.email && apt.status !== 'pending';
+    }
+    if (user?.role === 'doctor') {
+      return apt.doctorId?._id === user.id && apt.status === 'pending';
+    }
+    return false;
+  });
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const unreadCount = userNotifications.length;
+
+  const handleNotificationClick = () => {
+    setShowNotifications(!showNotifications);
+    setShowHelp(false);
+  };
+
+  const handleHelpClick = () => {
+    setShowHelp(!showHelp);
+    setShowNotifications(false);
+  };
 
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-semibold text-gray-900">
-            {user?.role === 'admin' ? 'Admin Panel' : 
-             user?.role === 'doctor' ? 'Doctor Dashboard' : 
-             'Patient Portal'}
-          </h1>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          {/* Notifications */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="h-5 w-5" />
+    <div className="relative">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-gradient-to-r from-rose-600 to-teal-600 text-white py-2 px-4"
+      >
+        <div className="max-w-7xl mx-auto flex justify-between items-center text-sm">
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-1">
+              <Phone size={14} />
+              <span>Emergency: +249 123 456 789</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Mail size={14} />
+              <span>info@medshealthcare.sd</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-white hover:bg-white/20 h-8 relative"
+                onClick={handleNotificationClick}
+              >
+                <Bell size={14} className="mr-1" />
+                <span className="hidden sm:inline">Notifications</span>
                 {unreadCount > 0 && (
                   <Badge 
                     variant="destructive" 
-                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
                   >
                     {unreadCount}
                   </Badge>
                 )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <div className="px-3 py-2 border-b">
-                <h3 className="font-semibold">Notifications</h3>
-              </div>
-              {notifications.map((notification) => (
-                <DropdownMenuItem key={notification.id} className="flex flex-col items-start p-3">
-                  <div className="flex items-start justify-between w-full">
-                    <p className={`text-sm ${notification.unread ? 'font-medium' : 'text-gray-600'}`}>
-                      {notification.message}
-                    </p>
-                    {notification.unread && (
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-1 ml-2 flex-shrink-0" />
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                </DropdownMenuItem>
-              ))}
-              {notifications.length === 0 && (
-                <div className="px-3 py-4 text-center text-gray-500">
-                  No new notifications
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Help */}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <HelpCircle className="h-5 w-5" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Help & Support</DialogTitle>
-                <DialogDescription>
-                  Get help with using the platform or contact our support team.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Quick Help</h4>
-                  <ul className="space-y-2 text-sm text-gray-600">
-                    <li>• How to book an appointment</li>
-                    <li>• Managing your profile</li>
-                    <li>• Payment and billing</li>
-                    <li>• Technical support</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-2">Contact Support</h4>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Need more help? Our support team is here for you.
-                  </p>
-                  <div className="space-y-1 text-sm">
-                    <p><strong>Email:</strong> support@healthcare.com</p>
-                    <p><strong>Phone:</strong> +1 (555) 123-4567</p>
-                    <p><strong>Hours:</strong> Mon-Fri 9AM-6PM</p>
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Account Settings */}
-          <AccountSettings />
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white hover:bg-white/20 h-8"
+              onClick={handleHelpClick}
+            >
+              <HelpCircle size={14} className="mr-1" />
+              <span className="hidden sm:inline">Help</span>
+            </Button>
+          </div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Notifications Dropdown */}
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute right-4 top-full mt-2 w-80 z-50"
+          >
+            <Card className="shadow-lg border">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-lg">Notifications</CardTitle>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowNotifications(false)}
+                >
+                  <X size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent className="max-h-64 overflow-y-auto">
+                {userNotifications.length > 0 ? (
+                  <div className="space-y-3">
+                    {userNotifications.map((notification) => (
+                      <div key={notification._id} className="p-3 bg-gray-50 rounded-lg">
+                        <p className="font-medium text-sm">
+                          {user?.role === 'patient' 
+                            ? `Appointment ${notification.status}` 
+                            : 'New appointment request'
+                          }
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {user?.role === 'patient' 
+                            ? `Your appointment with Dr. ${notification.doctorId?.name || 'Doctor'} has been ${notification.status}` 
+                            : `${notification.patientName} has requested an appointment`
+                          }
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(notification.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">No new notifications</p>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Help Dropdown */}
+      <AnimatePresence>
+        {showHelp && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute right-4 top-full mt-2 w-80 z-50"
+          >
+            <Card className="shadow-lg border">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-lg">Help & Support</CardTitle>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowHelp(false)}
+                >
+                  <X size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.location.href = '/contact'}
+                  >
+                    Contact Support
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.open('tel:+249123456789')}
+                  >
+                    Emergency Hotline
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.location.href = '/about'}
+                  >
+                    About MEDS Healthcare
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.location.href = '/academics'}
+                  >
+                    Health Education
+                  </Button>
+                </div>
+                <div className="border-t pt-3">
+                  <p className="text-sm text-gray-600">
+                    <strong>24/7 Emergency:</strong> +249 123 456 789
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Email:</strong> info@medshealthcare.sd
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

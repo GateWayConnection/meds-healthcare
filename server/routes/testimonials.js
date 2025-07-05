@@ -32,7 +32,7 @@ router.get('/all', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/testimonials - Create new testimonial (authentication required)
+// POST /api/testimonials - Create new testimonial
 router.post('/', authenticate, async (req, res) => {
   try {
     const { content, rating, treatment } = req.body;
