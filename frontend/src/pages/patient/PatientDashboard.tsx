@@ -1,251 +1,344 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, User, Heart, AlertCircle, Plus } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
+import { 
+  Calendar, 
+  Clock, 
+  User, 
+  MapPin, 
+  Bell, 
+  Phone,
+  Video,
+  MessageCircle,
+  AlertCircle
+} from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAppointments } from '../../hooks/useAppointments';
+import { useToast } from '@/hooks/use-toast';
 
 const PatientDashboard = () => {
   const { user } = useAuth();
+  const { userAppointments, loading, fetchUserAppointments } = useAppointments();
+  const { toast } = useToast();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showCallOptions, setShowCallOptions] = useState(false);
 
-  const upcomingAppointments = JSON.parse(localStorage.getItem('appointments') || '[]')
-    .filter((apt: any) => apt.patientId === user?.id && apt.status === 'confirmed')
-    .slice(0, 3);
-
-  const quickActions = [
-    {
-      title: 'Book Appointment',
-      description: 'Schedule a new appointment',
-      icon: Calendar,
-      link: '/book-appointment',
-      color: 'from-rose-500 to-pink-500'
-    },
-    {
-      title: 'Health Navigation',
-      description: 'Get health guidance',
-      icon: Heart,
-      link: '/health-navigation',
-      color: 'from-teal-500 to-cyan-500'
-    },
-    {
-      title: 'Find Doctor',
-      description: 'Search for specialists',
-      icon: User,
-      link: '/find-doctor',
-      color: 'from-purple-500 to-indigo-500'
+  useEffect(() => {
+    if (user) {
+      fetchUserAppointments();
+      // Check for new appointment status updates
+      checkNotifications();
     }
-  ];
+  }, [user]);
 
-  const healthTips = [
-    'Stay hydrated - drink at least 8 glasses of water daily',
-    'Take regular breaks from screen time to rest your eyes',
-    'Maintain a balanced diet with plenty of fruits and vegetables',
-    'Get 7-9 hours of quality sleep each night'
-  ];
+  const checkNotifications = () => {
+    // Simulate checking for notifications based on appointment status changes
+    const recentNotifications = userAppointments.filter(apt => 
+      apt.status === 'confirmed' || apt.status === 'cancelled'
+    ).slice(0, 3);
+    setNotifications(recentNotifications);
+  };
+
+  const handleCallNow = (type: 'emergency' | 'consultation' | 'support') => {
+    setShowCallOptions(false);
+    
+    switch (type) {
+      case 'emergency':
+        // For emergency calls - could integrate with actual emergency services
+        window.open('tel:911', '_self');
+        toast({
+          title: "Emergency Call",
+          description: "Connecting to emergency services...",
+          variant: "destructive"
+        });
+        break;
+        
+      case 'consultation':
+        // For video consultation - could integrate with video calling service
+        toast({
+          title: "Video Consultation",
+          description: "Starting video consultation... Please wait.",
+        });
+        // Simulate video call initialization
+        setTimeout(() => {
+          toast({
+            title: "Consultation Ready",
+            description: "Your video consultation is ready. Click to join.",
+          });
+        }, 2000);
+        break;
+        
+      case 'support':
+        // For general support
+        window.open('tel:+1-800-HEALTH', '_self');
+        toast({
+          title: "Calling Support",
+          description: "Connecting to customer support...",
+        });
+        break;
+        
+      default:
+        break;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      case 'completed': return 'bg-blue-100 text-blue-800 border-blue-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const upcomingAppointments = userAppointments
+    .filter(apt => apt.status === 'confirmed' || apt.status === 'pending')
+    .slice(0, 3);
 
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-rose-50 to-teal-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Welcome Header */}
+          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, <span className="text-rose-600">{user?.name}</span>!
+              Welcome back, {user?.name}!
             </h1>
-            <p className="text-gray-600">
-              Here's your health dashboard overview
-            </p>
+            <p className="text-gray-600">Here's an overview of your health journey</p>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Quick Actions */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {quickActions.map((action, index) => (
-                    <motion.div
-                      key={index}
-                      whileHover={{ scale: 1.05, y: -5 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="group"
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="bg-gradient-to-r from-rose-500 to-pink-500 text-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-rose-100">Quick Access</p>
+                      <h3 className="text-2xl font-bold">Call Now</h3>
+                    </div>
+                    <Phone className="w-8 h-8 text-rose-100" />
+                  </div>
+                  <div className="relative mt-4">
+                    <Button 
+                      className="w-full bg-white text-rose-600 hover:bg-rose-50"
+                      onClick={() => setShowCallOptions(!showCallOptions)}
                     >
-                      <Link to={action.link}>
-                        <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white/80 backdrop-blur-sm">
-                          <CardContent className="p-6 text-center">
-                            <div className={`w-12 h-12 mx-auto mb-4 bg-gradient-to-r ${action.color} rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
-                              <action.icon className="w-6 h-6 text-white" />
-                            </div>
-                            <h3 className="font-semibold text-gray-900 mb-2">
-                              {action.title}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {action.description}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-
-              {/* Upcoming Appointments */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">Upcoming Appointments</h2>
-                  <Link to="/patient/appointments">
-                    <Button variant="outline" size="sm">
-                      View All
+                      Call Options
                     </Button>
-                  </Link>
-                </div>
-                
-                {upcomingAppointments.length > 0 ? (
+                    
+                    {showCallOptions && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border p-2 z-10">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-red-600 hover:bg-red-50"
+                          onClick={() => handleCallNow('emergency')}
+                        >
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          Emergency (911)
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-blue-600 hover:bg-blue-50"
+                          onClick={() => handleCallNow('consultation')}
+                        >
+                          <Video className="w-4 h-4 mr-2" />
+                          Video Consultation
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-green-600 hover:bg-green-50"
+                          onClick={() => handleCallNow('support')}
+                        >
+                          <Phone className="w-4 h-4 mr-2" />
+                          Support Line
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-500">Total Appointments</p>
+                      <h3 className="text-2xl font-bold">{userAppointments.length}</h3>
+                    </div>
+                    <Calendar className="w-8 h-8 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-500">Upcoming</p>
+                      <h3 className="text-2xl font-bold">{upcomingAppointments.length}</h3>
+                    </div>
+                    <Clock className="w-8 h-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-500">Notifications</p>
+                      <h3 className="text-2xl font-bold">{notifications.length}</h3>
+                    </div>
+                    <Bell className="w-8 h-8 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+
+          {/* Notifications */}
+          {notifications.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mb-8"
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Bell className="w-5 h-5 mr-2 text-orange-500" />
+                    Recent Notifications
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-3">
-                    {upcomingAppointments.map((appointment: any, index: number) => (
-                      <motion.div
-                        key={appointment.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        whileHover={{ scale: 1.02 }}
-                      >
-                        <Card className="shadow-md hover:shadow-lg transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-4">
-                                <div className="w-10 h-10 bg-gradient-to-r from-rose-500 to-teal-500 rounded-full flex items-center justify-center">
-                                  <User className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                  <h3 className="font-semibold text-gray-900">
-                                    {appointment.doctorName}
-                                  </h3>
-                                  <p className="text-sm text-gray-600">
-                                    {appointment.specialty}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="flex items-center text-sm text-gray-600 mb-1">
-                                  <Calendar className="w-4 h-4 mr-1" />
-                                  {appointment.date}
-                                </div>
-                                <div className="flex items-center text-sm text-gray-600">
-                                  <Clock className="w-4 h-4 mr-1" />
-                                  {appointment.time}
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
+                    {notifications.map((notification, index) => (
+                      <div key={index} className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
+                        <Bell className="w-4 h-4 text-blue-500" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            Appointment {notification.status === 'confirmed' ? 'Approved' : 'Status Updated'}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            Your appointment on {formatDate(notification.appointmentDate)} has been {notification.status}
+                          </p>
+                        </div>
+                        <Badge className={getStatusColor(notification.status)}>
+                          {notification.status}
+                        </Badge>
+                      </div>
                     ))}
                   </div>
-                ) : (
-                  <Card className="shadow-md">
-                    <CardContent className="p-8 text-center">
-                      <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        No upcoming appointments
-                      </h3>
-                      <p className="text-gray-600 mb-4">
-                        Book your next appointment to stay on top of your health
-                      </p>
-                      <Link to="/book-appointment">
-                        <Button className="bg-rose-600 hover:bg-rose-700">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Book Now
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
-                )}
-              </motion.div>
-            </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Health Tips */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Card className="shadow-lg border-0 bg-gradient-to-br from-teal-500 to-cyan-600 text-white">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Heart className="w-5 h-5 mr-2" />
-                      Daily Health Tips
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {healthTips.map((tip, index) => (
-                        <motion.li
-                          key={index}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.4 + index * 0.1 }}
-                          className="text-sm opacity-90 flex items-start"
-                        >
-                          <span className="inline-block w-1.5 h-1.5 bg-white rounded-full mt-2 mr-2 flex-shrink-0" />
-                          {tip}
-                        </motion.li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Emergency Contact */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <Card className="shadow-lg border-0 bg-gradient-to-br from-rose-500 to-pink-600 text-white">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <AlertCircle className="w-5 h-5 mr-2" />
-                      Emergency Contact
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm opacity-90 mb-4">
-                      For medical emergencies, call our 24/7 hotline
-                    </p>
-                    <div className="text-2xl font-bold mb-2">
-                      +249 911 123 456
-                    </div>
+          {/* Upcoming Appointments */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Upcoming Appointments</CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.location.href = '/patient/appointments'}
+                >
+                  View All
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : upcomingAppointments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                    <p className="text-gray-500">No upcoming appointments</p>
                     <Button 
-                      size="sm" 
-                      className="bg-white/20 hover:bg-white/30 text-white border-white/20"
+                      className="mt-3"
+                      onClick={() => window.location.href = '/book-appointment'}
                     >
-                      Call Now
+                      Book Appointment
                     </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
-          </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {upcomingAppointments.map((appointment, index) => (
+                      <div key={appointment._id} className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex-shrink-0">
+                          <User className="w-8 h-8 text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900">
+                            Dr. {appointment.doctorId?.name || 'Doctor Name'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {formatDate(appointment.appointmentDate)} at {appointment.appointmentTime}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {appointment.specialtyId?.name || 'General'}
+                          </p>
+                        </div>
+                        <Badge className={getStatusColor(appointment.status)}>
+                          {appointment.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </div>
     </Layout>
