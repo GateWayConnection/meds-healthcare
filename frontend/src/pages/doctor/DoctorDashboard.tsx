@@ -1,57 +1,78 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
-import { Calendar, Users, Clock, TrendingUp, Eye, Edit, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Calendar, Clock, Users, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { useAppointments } from '../../hooks/useAppointments';
+import { useUsers } from '../../hooks/useUsers';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 const DoctorDashboard = () => {
-  const { appointments, updateAppointmentStatus, loading } = useAppointments();
   const { user } = useAuth();
+  const { appointments, loading: appointmentsLoading, updateAppointment } = useAppointments();
+  const { users, loading: usersLoading } = useUsers();
+  const [selectedReport, setSelectedReport] = useState<string>('daily');
 
-  // Filter appointments for current doctor
-  const doctorAppointments = appointments.filter(apt => 
-    apt.doctorId?._id === user?.id || apt.doctorId === user?.id
-  );
-
+  const doctorAppointments = appointments.filter(apt => apt.doctorId === user?._id);
   const todayAppointments = doctorAppointments.filter(apt => {
     const today = new Date().toDateString();
-    const aptDate = new Date(apt.appointmentDate).toDateString();
-    return today === aptDate;
+    return new Date(apt.appointmentDate).toDateString() === today;
   });
+  const pendingAppointments = doctorAppointments.filter(apt => apt.status === 'pending');
+  const confirmedAppointments = doctorAppointments.filter(apt => apt.status === 'confirmed');
 
-  const thisMonthAppointments = doctorAppointments.filter(apt => {
-    const thisMonth = new Date().getMonth();
-    const aptMonth = new Date(apt.appointmentDate).getMonth();
-    return thisMonth === aptMonth;
-  });
+  const pendingUsers = users.filter(user => user.role === 'doctor' && !user.verified);
 
-  const uniquePatients = [...new Set(doctorAppointments.map(apt => apt.patientEmail))];
-
-  const handleStatusUpdate = async (appointmentId: string, status: string) => {
+  const handleAppointmentAction = async (appointmentId: string, action: 'confirmed' | 'cancelled') => {
     try {
-      await updateAppointmentStatus(appointmentId, status);
-      toast.success(`Appointment ${status} successfully`);
+      await updateAppointment(appointmentId, { status: action });
+      toast({
+        title: "Success",
+        description: `Appointment ${action} successfully.`
+      });
     } catch (error) {
-      toast.error('Failed to update appointment status');
+      toast({
+        title: "Error",
+        description: "Failed to update appointment.",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleDeleteAppointment = async (appointmentId: string) => {
-    try {
-      await updateAppointmentStatus(appointmentId, 'cancelled');
-      toast.success('Appointment cancelled successfully');
-    } catch (error) {
-      toast.error('Failed to cancel appointment');
-    }
+  const generateReport = () => {
+    const reportData = {
+      daily: {
+        totalAppointments: todayAppointments.length,
+        confirmedAppointments: todayAppointments.filter(apt => apt.status === 'confirmed').length,
+        pendingAppointments: todayAppointments.filter(apt => apt.status === 'pending').length,
+        cancelledAppointments: todayAppointments.filter(apt => apt.status === 'cancelled').length,
+      },
+      weekly: {
+        totalAppointments: doctorAppointments.filter(apt => {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return new Date(apt.appointmentDate) >= weekAgo;
+        }).length,
+        // ... similar calculations for weekly
+      },
+      monthly: {
+        totalAppointments: doctorAppointments.filter(apt => {
+          const monthAgo = new Date();
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          return new Date(apt.appointmentDate) >= monthAgo;
+        }).length,
+        // ... similar calculations for monthly
+      }
+    };
+
+    return reportData[selectedReport as keyof typeof reportData];
   };
 
-  if (loading) {
+  if (appointmentsLoading || usersLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
@@ -63,136 +84,191 @@ const DoctorDashboard = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 to-teal-50 py-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Doctor Dashboard</h1>
-            <p className="text-gray-600">Manage your appointments and patient care</p>
-          </motion.div>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Doctor Dashboard</h1>
+            <p className="text-gray-600 mt-2">Welcome back, Dr. {user?.name}</p>
+          </div>
 
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Today's Appointments</p>
-                    <p className="text-2xl font-bold text-gray-900">{todayAppointments.length}</p>
-                  </div>
-                  <Calendar className="w-8 h-8 text-rose-600" />
-                </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Today's Appointments</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{todayAppointments.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {confirmedAppointments.length} confirmed
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Patients</p>
-                    <p className="text-2xl font-bold text-gray-900">{uniquePatients.length}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-blue-600" />
-                </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{pendingAppointments.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  Awaiting your response
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Pending Appointments</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {doctorAppointments.filter(apt => apt.status === 'pending').length}
-                    </p>
-                  </div>
-                  <Clock className="w-8 h-8 text-green-600" />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Set(doctorAppointments.map(apt => apt.patientId)).size}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Unique patients served
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">This Month</p>
-                    <p className="text-2xl font-bold text-gray-900">{thisMonthAppointments.length}</p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-purple-600" />
-                </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Users</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{pendingUsers.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  Require verification
+                </p>
               </CardContent>
             </Card>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="shadow-lg">
+            {/* Pending Appointments */}
+            <Card>
               <CardHeader>
-                <CardTitle>Today's Schedule</CardTitle>
+                <CardTitle>Pending Appointments</CardTitle>
+                <CardDescription>Appointments awaiting your approval</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {todayAppointments.length > 0 ? (
-                    todayAppointments.slice(0, 5).map((appointment) => (
-                      <div key={appointment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  {pendingAppointments.length > 0 ? (
+                    pendingAppointments.slice(0, 5).map((appointment) => (
+                      <div key={appointment._id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div>
                           <p className="font-medium">{appointment.patientName}</p>
-                          <p className="text-sm text-gray-600">{appointment.specialtyId?.name || 'Consultation'}</p>
-                          <Badge variant={
-                            appointment.status === 'confirmed' ? 'default' : 
-                            appointment.status === 'pending' ? 'secondary' : 'destructive'
-                          }>
-                            {appointment.status}
-                          </Badge>
+                          <p className="text-sm text-gray-600">
+                            {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.timeSlot}
+                          </p>
+                          <p className="text-sm text-gray-500">{appointment.reason}</p>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <p className="font-medium">{appointment.appointmentTime}</p>
-                          <div className="flex space-x-1">
-                            <Button size="sm" variant="ghost" onClick={() => handleStatusUpdate(appointment._id, 'confirmed')}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteAppointment(appointment._id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleAppointmentAction(appointment._id, 'confirmed')}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleAppointmentAction(appointment._id, 'cancelled')}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500 text-center py-4">No appointments scheduled for today</p>
+                    <p className="text-gray-500 text-center py-4">No pending appointments</p>
                   )}
                 </div>
-                <Button className="w-full mt-4 bg-rose-600 hover:bg-rose-700">
-                  View Full Schedule
-                </Button>
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg">
+            {/* Reports Section */}
+            <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle>Generate Reports</CardTitle>
+                <CardDescription>View detailed analytics and reports</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <Button className="w-full bg-rose-600 hover:bg-rose-700" onClick={() => window.location.href = '/doctor/availability'}>
-                  Manage Availability
-                </Button>
-                <Button variant="outline" className="w-full" onClick={() => window.location.href = '/doctor/profile'}>
-                  Update Profile
-                </Button>
-                <Button variant="outline" className="w-full" onClick={() => toast.info('Reports feature coming soon!')}>
-                  Generate Reports
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => {
-                    const pendingCount = doctorAppointments.filter(apt => apt.status === 'pending').length;
-                    toast.info(`You have ${pendingCount} pending appointments to review`);
-                  }}
-                >
-                  View Pending Approvals ({doctorAppointments.filter(apt => apt.status === 'pending').length})
-                </Button>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex space-x-2">
+                    <Button
+                      variant={selectedReport === 'daily' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedReport('daily')}
+                    >
+                      Daily
+                    </Button>
+                    <Button
+                      variant={selectedReport === 'weekly' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedReport('weekly')}
+                    >
+                      Weekly
+                    </Button>
+                    <Button
+                      variant={selectedReport === 'monthly' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedReport('monthly')}
+                    >
+                      Monthly
+                    </Button>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-3">
+                      {selectedReport.charAt(0).toUpperCase() + selectedReport.slice(1)} Report
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">Total Appointments</p>
+                        <p className="font-bold text-lg">{generateReport().totalAppointments}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Confirmed</p>
+                        <p className="font-bold text-lg text-green-600">{generateReport().confirmedAppointments}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Generate Detailed Report
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Detailed {selectedReport.charAt(0).toUpperCase() + selectedReport.slice(1)} Report</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-blue-50 p-4 rounded-lg">
+                            <p className="text-blue-800 font-medium">Total Appointments</p>
+                            <p className="text-2xl font-bold text-blue-900">{generateReport().totalAppointments}</p>
+                          </div>
+                          <div className="bg-green-50 p-4 rounded-lg">
+                            <p className="text-green-800 font-medium">Confirmed</p>
+                            <p className="text-2xl font-bold text-green-900">{generateReport().confirmedAppointments}</p>
+                          </div>
+                        </div>
+                        <Button className="w-full">Download PDF Report</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardContent>
             </Card>
           </div>

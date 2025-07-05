@@ -1,4 +1,3 @@
-
 import React from 'react';
 import Layout from '../components/Layout';
 import { motion } from 'framer-motion';
@@ -112,6 +111,9 @@ const Home = () => {
       {/* Specialties Section */}
       <SpecialtiesSection />
 
+      {/* Testimonials Section */}
+      <TestimonialsSection />
+
       {/* Features Section */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -162,9 +164,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* Testimonials Section */}
-      <TestimonialsSection />
 
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-rose-600 to-teal-600">
