@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Users, Award, Clock, ArrowRight, Shield, Heart, Star } from 'lucide-react';
 import SpecialtiesSection from '../components/SpecialtiesSection';
 import TestimonialsSection from '../components/TestimonialsSection';
+import FindDoctorSection from '../components/FindDoctorSection';
 
 const Home = () => {
   return (
@@ -108,6 +109,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Find Doctor Section */}
+      <FindDoctorSection />
 
       {/* Specialties Section */}
       <SpecialtiesSection />

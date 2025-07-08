@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,68 +11,28 @@ import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { useDoctors } from '../hooks/useDoctors';
+import { useSpecialties } from '../hooks/useSpecialties';
 
 const FindDoctor = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
-  const [loading, setLoading] = useState(false);
   
-  // Mock data for specialties - in real app, this would come from API
-  const specialties = [
-    { _id: '1', name: 'Cardiology', description: 'Heart and blood vessel care' },
-    { _id: '2', name: 'Dermatology', description: 'Skin care specialist' },
-    { _id: '3', name: 'Pediatrics', description: 'Child healthcare' },
-    { _id: '4', name: 'Orthopedics', description: 'Bone and joint care' },
-    { _id: '5', name: 'Neurology', description: 'Brain and nervous system' }
-  ];
+  // Get dynamic data from hooks
+  const { doctors, loading: doctorsLoading, error: doctorsError, fetchDoctors } = useDoctors();
+  const { specialties, loading: specialtiesLoading } = useSpecialties();
 
-  // Mock data for doctors - in real app, this would come from API
-  const doctors = [
-    {
-      _id: '1',
-      name: 'Dr. Sarah Johnson',
-      specialty: 'Cardiology',
-      experience: 15,
-      rating: 4.9,
-      consultationFee: 150,
-      image: '/placeholder.svg',
-      qualifications: ['MD', 'FACC'],
-      isAvailable: true,
-      availability: { monday: ['09:00', '17:00'], tuesday: ['09:00', '17:00'] }
-    },
-    {
-      _id: '2',
-      name: 'Dr. Michael Chen',
-      specialty: 'Dermatology',
-      experience: 12,
-      rating: 4.8,
-      consultationFee: 120,
-      image: '/placeholder.svg',
-      qualifications: ['MD', 'FAAD'],
-      isAvailable: true,
-      availability: { monday: ['10:00', '16:00'], wednesday: ['09:00', '17:00'] }
-    },
-    {
-      _id: '3',
-      name: 'Dr. Emily Rodriguez',
-      specialty: 'Pediatrics',
-      experience: 10,
-      rating: 4.7,
-      consultationFee: 100,
-      image: '/placeholder.svg',
-      qualifications: ['MD', 'FAAP'],
-      isAvailable: false,
-      availability: { tuesday: ['09:00', '17:00'], thursday: ['09:00', '17:00'] }
-    }
-  ];
+  // Filter doctors based on search and specialty
+  useEffect(() => {
+    fetchDoctors(selectedSpecialty || undefined);
+  }, [selectedSpecialty, fetchDoctors]);
 
   const filteredDoctors = doctors.filter(doctor => {
     const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSpecialty = !selectedSpecialty || doctor.specialty === selectedSpecialty;
-    return matchesSearch && matchesSpecialty;
+    return matchesSearch;
   });
 
   const handleBookAppointment = (doctorId: string) => {
@@ -141,7 +101,7 @@ const FindDoctor = () => {
                       <SelectValue placeholder="All Specialties" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">All Specialties</SelectItem>
+                      <SelectItem value="">All Specialties</SelectItem>
                       {specialties.map(specialty => (
                         <SelectItem key={specialty._id} value={specialty.name}>
                           {specialty.name}
@@ -153,9 +113,24 @@ const FindDoctor = () => {
               </div>
             </motion.div>
 
+            {/* Loading State */}
+            {(doctorsLoading || specialtiesLoading) && (
+              <div className="text-center py-12">
+                <p className="text-gray-600 text-lg">Loading doctors...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {doctorsError && (
+              <div className="text-center py-12">
+                <p className="text-red-600 text-lg">Error: {doctorsError}</p>
+              </div>
+            )}
+
             {/* Results */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDoctors.map((doctor, index) => (
+            {!doctorsLoading && !specialtiesLoading && !doctorsError && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredDoctors.map((doctor, index) => (
                 <motion.div
                   key={doctor._id}
                   initial={{ opacity: 0, y: 20 }}
@@ -243,10 +218,11 @@ const FindDoctor = () => {
                     </CardContent>
                   </Card>
                 </motion.div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
-            {filteredDoctors.length === 0 && (
+            {!doctorsLoading && !specialtiesLoading && !doctorsError && filteredDoctors.length === 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

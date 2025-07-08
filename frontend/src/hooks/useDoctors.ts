@@ -6,14 +6,22 @@ interface Doctor {
   _id: string;
   name: string;
   email: string;
-  phone: string;
+  specialtyId: {
+    _id: string;
+    name: string;
+    description: string;
+  };
   specialty: string;
   experience: number;
-  licenseNumber: string;
-  bio: string;
-  avatar?: string;
-  isVerified: boolean;
+  rating: number;
+  image: string;
+  qualifications: string[];
+  availability: object;
+  consultationFee: number;
+  isAvailable: boolean;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const useDoctors = () => {
@@ -21,7 +29,20 @@ export const useDoctors = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDoctors = async () => {
+  const fetchDoctors = async (specialty?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiService.getDoctors(specialty);
+      setDoctors(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch doctors');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllDoctors = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -80,6 +101,8 @@ export const useDoctors = () => {
     createDoctor,
     updateDoctor,
     deleteDoctor,
+    fetchDoctors,
+    fetchAllDoctors,
     refetch: fetchDoctors
   };
 };
