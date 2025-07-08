@@ -1,5 +1,3 @@
-const API_BASE_URL = 'http://localhost:5000/api';
-
 class ApiService {
   private baseURL: string;
 
@@ -215,12 +213,12 @@ class ApiService {
 
   // Testimonials endpoints
   async getTestimonials() {
-    console.log('🌐 API Request: GET testimonials');
+    console.log('🌐 Fetching testimonials from API');
     return this.get('/testimonials');
   }
 
   async createTestimonial(testimonialData: any) {
-    console.log('🌐 API Request: POST testimonials', testimonialData);
+    console.log('🌐 Creating testimonial:', testimonialData);
     return this.post('/testimonials', testimonialData);
   }
 
