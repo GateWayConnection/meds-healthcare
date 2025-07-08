@@ -213,13 +213,11 @@ class ApiService {
 
   // Testimonials endpoints
   async getTestimonials() {
-    console.log('🌐 Fetching testimonials from API');
     return this.get('/testimonials');
   }
 
-  async createTestimonial(testimonialData: any) {
-    console.log('🌐 Creating testimonial:', testimonialData);
-    return this.post('/testimonials', testimonialData);
+  async createTestimonial(data: any) {
+    return this.post('/testimonials', data);
   }
 
   async approveTestimonial(id: string) {
