@@ -24,9 +24,12 @@ export const useTestimonials = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('🔄 Fetching testimonials...');
       const data = await apiService.getTestimonials();
+      console.log('✅ Testimonials fetched:', data);
       setTestimonials(data);
     } catch (err) {
+      console.error('❌ Error fetching testimonials:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch testimonials');
     } finally {
       setLoading(false);
@@ -36,9 +39,14 @@ export const useTestimonials = () => {
   const createTestimonial = async (testimonialData: Partial<Testimonial>) => {
     try {
       setError(null);
+      console.log('🔄 Creating testimonial...');
       const newTestimonial = await apiService.createTestimonial(testimonialData);
+      console.log('✅ Testimonial created:', newTestimonial);
+      // Refetch testimonials to update the list
+      await fetchTestimonials();
       return newTestimonial;
     } catch (err) {
+      console.error('❌ Error creating testimonial:', err);
       setError(err instanceof Error ? err.message : 'Failed to create testimonial');
       throw err;
     }
