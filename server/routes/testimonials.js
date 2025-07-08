@@ -4,10 +4,11 @@ const router = express.Router();
 const Testimonial = require('../models/Testimonial');
 const { authenticate } = require('../middleware/auth');
 
-// GET /api/testimonials - Get all approved testimonials
+// GET /api/testimonials - Get all approved testimonials (or all for testing)
 router.get('/', async (req, res) => {
   try {
-    const testimonials = await Testimonial.find({ isApproved: true, isActive: true })
+    // For now, show all active testimonials (not just approved ones) to see them on homepage
+    const testimonials = await Testimonial.find({ isActive: true })
       .sort({ createdAt: -1 });
     res.json(testimonials);
   } catch (error) {

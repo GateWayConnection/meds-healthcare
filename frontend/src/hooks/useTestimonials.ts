@@ -37,6 +37,8 @@ export const useTestimonials = () => {
     try {
       setError(null);
       const newTestimonial = await apiService.createTestimonial(testimonialData);
+      // Refresh testimonials after creating a new one
+      await fetchTestimonials();
       return newTestimonial;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create testimonial');
