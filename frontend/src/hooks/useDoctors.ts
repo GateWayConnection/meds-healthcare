@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
 
 interface Doctor {
@@ -29,7 +28,7 @@ export const useDoctors = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDoctors = async (specialty?: string) => {
+  const fetchDoctors = useCallback(async (specialty?: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -40,9 +39,9 @@ export const useDoctors = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAllDoctors = async () => {
+  const fetchAllDoctors = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -53,9 +52,9 @@ export const useDoctors = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const createDoctor = async (doctorData: Partial<Doctor>) => {
+  const createDoctor = useCallback(async (doctorData: Partial<Doctor>) => {
     try {
       setError(null);
       const newDoctor = await apiService.createDoctor(doctorData);
@@ -65,9 +64,9 @@ export const useDoctors = () => {
       setError(err instanceof Error ? err.message : 'Failed to create doctor');
       throw err;
     }
-  };
+  }, []);
 
-  const updateDoctor = async (id: string, doctorData: Partial<Doctor>) => {
+  const updateDoctor = useCallback(async (id: string, doctorData: Partial<Doctor>) => {
     try {
       setError(null);
       const updatedDoctor = await apiService.updateDoctor(id, doctorData);
@@ -77,9 +76,9 @@ export const useDoctors = () => {
       setError(err instanceof Error ? err.message : 'Failed to update doctor');
       throw err;
     }
-  };
+  }, []);
 
-  const deleteDoctor = async (id: string) => {
+  const deleteDoctor = useCallback(async (id: string) => {
     try {
       setError(null);
       await apiService.deleteDoctor(id);
@@ -88,24 +87,11 @@ export const useDoctors = () => {
       setError(err instanceof Error ? err.message : 'Failed to delete doctor');
       throw err;
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const loadDoctors = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await apiService.getDoctors();
-        setDoctors(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch doctors');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadDoctors();
-  }, []);
+    fetchDoctors(); // ✅ Initial fetch on mount (once)
+  }, [fetchDoctors]);
 
   return {
     doctors,
