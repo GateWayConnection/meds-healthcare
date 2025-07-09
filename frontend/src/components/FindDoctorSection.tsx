@@ -41,7 +41,7 @@ const FindDoctorSection = () => {
       navigate('/login');
       return;
     }
-    toast.info('Call feature will be available soon');
+    navigate(`/call?doctor=${doctorId}&type=video`);
   };
 
   if (loading) {
