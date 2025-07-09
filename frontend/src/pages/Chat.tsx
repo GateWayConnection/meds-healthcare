@@ -24,7 +24,7 @@ const Chat = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { doctors } = useDoctors();
+  const { doctors, fetchDoctors } = useDoctors();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -40,12 +40,25 @@ const Chat = () => {
       navigate('/login');
       return;
     }
-    if (!doctorId || !doctor) {
+    if (!doctorId) {
+      toast.error('No doctor specified');
+      navigate('/find-doctor');
+      return;
+    }
+    // Fetch doctors if not already loaded
+    if (doctors.length === 0) {
+      fetchDoctors();
+    }
+  }, [user, doctorId, navigate, doctors.length, fetchDoctors]);
+
+  useEffect(() => {
+    // Check if doctor exists after doctors are loaded
+    if (doctorId && doctors.length > 0 && !doctor) {
       toast.error('Doctor not found');
       navigate('/find-doctor');
       return;
     }
-  }, [user, doctorId, doctor, navigate]);
+  }, [doctorId, doctors, doctor, navigate]);
 
   useEffect(() => {
     // Simulate loading messages from database

@@ -39,6 +39,7 @@ const Call = () => {
   
   const doctorId = searchParams.get('doctor');
   const callType = searchParams.get('type') as 'audio' | 'video' || 'video';
+  const { fetchDoctors } = useDoctors();
   const doctor = doctors.find(d => d._id === doctorId);
 
   useEffect(() => {
@@ -46,17 +47,31 @@ const Call = () => {
       navigate('/login');
       return;
     }
-    if (!doctorId || !doctor) {
-      toast.error('Doctor not found');
+    if (!doctorId) {
+      toast.error('No doctor specified');
       navigate('/find-doctor');
       return;
     }
-    
-    initializeCall();
+    // Fetch doctors if not already loaded
+    if (doctors.length === 0) {
+      fetchDoctors();
+    }
+  }, [user, doctorId, navigate, doctors.length, fetchDoctors]);
+
+  useEffect(() => {
+    // Check if doctor exists and initialize call
+    if (doctorId && doctors.length > 0) {
+      if (!doctor) {
+        toast.error('Doctor not found');
+        navigate('/find-doctor');
+        return;
+      }
+      initializeCall();
+    }
     return () => {
       cleanup();
     };
-  }, [user, doctorId, doctor, navigate, callType]);
+  }, [doctorId, doctors, doctor, navigate, callType]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
