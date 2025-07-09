@@ -91,7 +91,20 @@ export const useDoctors = () => {
   };
 
   useEffect(() => {
-    fetchDoctors();
+    const loadDoctors = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await apiService.getDoctors();
+        setDoctors(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch doctors');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadDoctors();
   }, []);
 
   return {
