@@ -10,26 +10,21 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { useDoctors } from '../hooks/useDoctors';
-
-interface Message {
-  _id: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  timestamp: Date;
-  isEdited?: boolean;
-}
+import { socketService } from '../services/socketService';
+import { chatApiService, ChatMessage, ChatRoom } from '../services/chatApi';
 
 const Chat = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { doctors, fetchDoctors } = useDoctors();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(false);
+  const [room, setRoom] = useState<ChatRoom | null>(null);
+  const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const doctorId = searchParams.get('doctor');
@@ -45,11 +40,86 @@ const Chat = () => {
       navigate('/find-doctor');
       return;
     }
+    // Initialize socket connection
+    initializeChat();
+    
     // Fetch doctors if not already loaded
     if (doctors.length === 0) {
       fetchDoctors();
     }
+
+    return () => {
+      // Cleanup socket listeners
+      socketService.removeListener('new_message');
+      socketService.removeListener('message_edited');
+      socketService.removeListener('message_deleted');
+      socketService.removeListener('user_online');
+      socketService.removeListener('user_offline');
+    };
   }, [user, doctorId, navigate, doctors.length, fetchDoctors]);
+
+  const initializeChat = async () => {
+    if (!user || !doctorId) return;
+
+    try {
+      setLoading(true);
+      
+      // Connect to socket
+      await socketService.connect(user.id);
+      
+      // Create or get chat room
+      const chatRoom = await chatApiService.createChatRoom(doctorId);
+      setRoom(chatRoom);
+      
+      // Join the room
+      socketService.joinRoom(chatRoom._id, user.id);
+      
+      // Load existing messages
+      const roomMessages = await chatApiService.getRoomMessages(chatRoom._id);
+      setMessages(roomMessages);
+      
+      // Set up socket listeners
+      setupSocketListeners();
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+      toast.error('Failed to initialize chat');
+      setLoading(false);
+    }
+  };
+
+  const setupSocketListeners = () => {
+    // Listen for new messages
+    socketService.onNewMessage((message: ChatMessage) => {
+      setMessages(prev => [...prev, message]);
+    });
+
+    // Listen for edited messages
+    socketService.onMessageEdited((editedMessage: ChatMessage) => {
+      setMessages(prev => prev.map(msg => 
+        msg._id === editedMessage._id ? editedMessage : msg
+      ));
+    });
+
+    // Listen for deleted messages
+    socketService.onMessageDeleted(({ messageId }: { messageId: string }) => {
+      setMessages(prev => prev.filter(msg => msg._id !== messageId));
+    });
+
+    // Listen for user online/offline status
+    socketService.onUserOnline(({ userId }: { userId: string }) => {
+      if (userId === doctorId) {
+        setIsOnline(true);
+      }
+    });
+
+    socketService.onUserOffline(({ userId }: { userId: string }) => {
+      if (userId === doctorId) {
+        setIsOnline(false);
+      }
+    });
+  };
 
   useEffect(() => {
     // Check if doctor exists after doctors are loaded
@@ -61,87 +131,54 @@ const Chat = () => {
   }, [doctorId, doctors, doctor, navigate]);
 
   useEffect(() => {
-    // Simulate loading messages from database
-    const mockMessages: Message[] = [
-      {
-        _id: '1',
-        senderId: doctorId || '',
-        senderName: doctor?.name || 'Doctor',
-        content: 'Hello! How can I help you today?',
-        timestamp: new Date(Date.now() - 300000),
-      },
-      {
-        _id: '2',
-        senderId: user?.id || '',
-        senderName: 'You',
-        content: 'Hi Doctor, I have been experiencing some headaches lately.',
-        timestamp: new Date(Date.now() - 240000),
-      },
-    ];
-    setMessages(mockMessages);
-  }, [doctorId, doctor, user]);
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Simulate online status changes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsOnline(Math.random() > 0.3);
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !doctorId) return;
 
-    const message: Message = {
-      _id: Date.now().toString(),
+    // Send message via socket
+    socketService.sendMessage({
       senderId: user.id,
-      senderName: 'You',
+      receiverId: doctorId,
       content: newMessage.trim(),
-      timestamp: new Date(),
-    };
+      type: 'text'
+    });
 
-    setMessages(prev => [...prev, message]);
     setNewMessage('');
-
-    // Simulate doctor response after 2 seconds
-    setTimeout(() => {
-      const doctorResponse: Message = {
-        _id: (Date.now() + 1).toString(),
-        senderId: doctorId || '',
-        senderName: doctor?.name || 'Doctor',
-        content: 'Thank you for sharing that. Can you tell me more about when these headaches occur?',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, doctorResponse]);
-    }, 2000);
   };
 
   const handleEditMessage = (messageId: string) => {
     const message = messages.find(m => m._id === messageId);
-    if (message && message.senderId === user?.id) {
+    if (message && message.senderId._id === user?.id) {
       setEditingMessageId(messageId);
       setEditingContent(message.content);
     }
   };
 
   const handleSaveEdit = () => {
-    if (!editingContent.trim()) return;
+    if (!editingContent.trim() || !editingMessageId || !user) return;
 
-    setMessages(prev => prev.map(message => 
-      message._id === editingMessageId 
-        ? { ...message, content: editingContent.trim(), isEdited: true }
-        : message
-    ));
+    // Send edit via socket
+    socketService.editMessage({
+      messageId: editingMessageId,
+      content: editingContent.trim(),
+      userId: user.id
+    });
+
     setEditingMessageId(null);
     setEditingContent('');
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    setMessages(prev => prev.filter(m => m._id !== messageId));
+    if (!user) return;
+    
+    // Send delete via socket
+    socketService.deleteMessage({
+      messageId,
+      userId: user.id
+    });
+    
     toast.success('Message deleted');
   };
 
@@ -149,10 +186,10 @@ const Chat = () => {
     navigate(`/call?doctor=${doctorId}&type=${type}`);
   };
 
-  if (!doctor) {
+  if (loading || !doctor) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -221,10 +258,10 @@ const Chat = () => {
               key={message._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex ${message.senderId === user?.id ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.senderId._id === user?.id ? 'justify-end' : 'justify-start'}`}
             >
               <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                message.senderId === user?.id
+                message.senderId._id === user?.id
                   ? 'bg-blue-600 text-white'
                   : 'bg-white border shadow-sm'
               }`}>
@@ -245,7 +282,7 @@ const Chat = () => {
                   <>
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm">{message.content}</p>
-                      {message.senderId === user?.id && (
+                      {message.senderId._id === user?.id && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -270,13 +307,13 @@ const Chat = () => {
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-xs ${
-                        message.senderId === user?.id ? 'text-blue-100' : 'text-gray-500'
+                        message.senderId._id === user?.id ? 'text-blue-100' : 'text-gray-500'
                       }`}>
-                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       {message.isEdited && (
                         <span className={`text-xs ${
-                          message.senderId === user?.id ? 'text-blue-100' : 'text-gray-400'
+                          message.senderId._id === user?.id ? 'text-blue-100' : 'text-gray-400'
                         }`}>
                           (edited)
                         </span>

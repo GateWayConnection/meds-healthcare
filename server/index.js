@@ -2,7 +2,10 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const http = require('http');
+const socketIo = require('socket.io');
 const connectDB = require('./config/db');
+const { handleSocketConnection } = require('./socket/socketHandlers');
 
 // Load environment variables
 dotenv.config();
@@ -11,6 +14,16 @@ dotenv.config();
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Initialize socket handlers
+handleSocketConnection(io);
 
 // Middleware
 app.use(cors());
@@ -28,6 +41,7 @@ app.use('/api/blogs', require('./routes/blogs'));
 app.use('/api/activities', require('./routes/activities'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/testimonials', require('./routes/testimonials'));
+app.use('/api/chat', require('./routes/chat'));
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -47,6 +61,6 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
