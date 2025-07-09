@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Doctor = require('../models/Doctor');
 const Specialty = require('../models/Specialty');
-const authenticate = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
 // GET /api/doctors - Get all active doctors
 router.get('/', async (req, res) => {
