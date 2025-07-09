@@ -1,26 +1,28 @@
+
 const express = require('express');
 const router = express.Router();
 const ChatMessage = require('../models/ChatMessage');
 const ChatRoom = require('../models/ChatRoom');
-const User = require('../models/User');
-const { authenticate } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
-// Helper function to generate room ID
-const generateRoomId = (userId1, userId2) => {
-  return [userId1, userId2].sort().join('-');
-};
-
-// GET /api/chat/rooms - Get user's chat rooms
-router.get('/rooms', authenticate, async (req, res) => {
+// Get user's chat rooms
+router.get('/rooms', auth, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
+    
     const rooms = await ChatRoom.find({
       participants: userId
     })
     .populate('participants', 'name email role')
-    .populate('lastMessage')
+    .populate({
+      path: 'lastMessage',
+      populate: {
+        path: 'senderId receiverId',
+        select: 'name email role'
+      }
+    })
     .sort({ lastActivity: -1 });
-
+    
     res.json(rooms);
   } catch (error) {
     console.error('Error fetching chat rooms:', error);
@@ -28,27 +30,27 @@ router.get('/rooms', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/chat/messages/:roomId - Get messages for a room
-router.get('/messages/:roomId', authenticate, async (req, res) => {
+// Get messages for a specific room
+router.get('/messages/:roomId', auth, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
-    // Verify user is participant in this room
+    // Verify user is part of this room
     const room = await ChatRoom.findOne({
-      _id: roomId,
-      participants: userId
+      participants: userId,
+      _id: roomId
     });
     
     if (!room) {
       return res.status(403).json({ error: 'Access denied to this chat room' });
     }
-
+    
     const messages = await ChatMessage.find({ roomId })
       .populate('senderId', 'name email role')
       .populate('receiverId', 'name email role')
       .sort({ createdAt: 1 });
-
+    
     res.json(messages);
   } catch (error) {
     console.error('Error fetching messages:', error);
@@ -56,97 +58,109 @@ router.get('/messages/:roomId', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/chat/messages - Send a message
-router.post('/messages', authenticate, async (req, res) => {
+// Send a message
+router.post('/messages', auth, async (req, res) => {
   try {
     const { receiverId, content, type = 'text' } = req.body;
-    const senderId = req.user.id;
-
-    if (!receiverId || !content) {
-      return res.status(400).json({ error: 'Receiver ID and content are required' });
-    }
-
-    // Verify receiver exists
-    const receiver = await User.findById(receiverId);
-    if (!receiver) {
-      return res.status(404).json({ error: 'Receiver not found' });
-    }
-
-    const roomId = generateRoomId(senderId, receiverId);
-
-    // Create or update chat room
-    let room = await ChatRoom.findOne({
-      participants: { $all: [senderId, receiverId] }
-    });
-
-    if (!room) {
-      room = new ChatRoom({
-        participants: [senderId, receiverId],
-        lastActivity: new Date(),
-        unreadCount: new Map()
-      });
-    }
-
-    // Create message
+    const senderId = req.user.userId;
+    
+    // Create room ID
+    const roomId = [senderId, receiverId].sort().join('-');
+    
     const message = new ChatMessage({
       senderId,
       receiverId,
-      content: content.trim(),
+      content,
       type,
-      roomId: room._id
+      roomId
     });
-
+    
     await message.save();
-
-    // Update room with last message and activity
-    room.lastMessage = message._id;
-    room.lastActivity = new Date();
     
-    // Update unread count for receiver
-    const currentUnread = room.unreadCount.get(receiverId.toString()) || 0;
-    room.unreadCount.set(receiverId.toString(), currentUnread + 1);
-    
-    await room.save();
-
-    // Populate the message for response
+    // Populate sender and receiver info
     await message.populate('senderId', 'name email role');
     await message.populate('receiverId', 'name email role');
-
-    res.status(201).json(message);
+    
+    // Update or create chat room
+    let chatRoom = await ChatRoom.findOne({
+      participants: { $all: [senderId, receiverId] }
+    });
+    
+    if (!chatRoom) {
+      chatRoom = new ChatRoom({
+        participants: [senderId, receiverId],
+        lastMessage: message._id,
+        lastActivity: new Date()
+      });
+    } else {
+      chatRoom.lastMessage = message._id;
+      chatRoom.lastActivity = new Date();
+    }
+    
+    await chatRoom.save();
+    
+    res.json(message);
   } catch (error) {
     console.error('Error sending message:', error);
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
 
-// PUT /api/chat/messages/:id - Edit a message
-router.put('/messages/:id', authenticate, async (req, res) => {
+// Create or get existing chat room
+router.post('/rooms/create', auth, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { content } = req.body;
-    const userId = req.user.id;
-
-    if (!content) {
-      return res.status(400).json({ error: 'Content is required' });
-    }
-
-    const message = await ChatMessage.findOne({
-      _id: id,
-      senderId: userId
+    const { participantId } = req.body;
+    const userId = req.user.userId;
+    
+    let room = await ChatRoom.findOne({
+      participants: { $all: [userId, participantId] }
+    })
+    .populate('participants', 'name email role')
+    .populate({
+      path: 'lastMessage',
+      populate: {
+        path: 'senderId receiverId',
+        select: 'name email role'
+      }
     });
-
-    if (!message) {
-      return res.status(404).json({ error: 'Message not found or access denied' });
+    
+    if (!room) {
+      room = new ChatRoom({
+        participants: [userId, participantId],
+        lastActivity: new Date()
+      });
+      
+      await room.save();
+      
+      await room.populate('participants', 'name email role');
     }
+    
+    res.json(room);
+  } catch (error) {
+    console.error('Error creating chat room:', error);
+    res.status(500).json({ error: 'Failed to create chat room' });
+  }
+});
 
-    message.content = content.trim();
-    message.isEdited = true;
-    message.editedAt = new Date();
-
-    await message.save();
-    await message.populate('senderId', 'name email role');
-    await message.populate('receiverId', 'name email role');
-
+// Edit a message
+router.put('/messages/:messageId', auth, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+    const userId = req.user.userId;
+    
+    const message = await ChatMessage.findOneAndUpdate(
+      { _id: messageId, senderId: userId },
+      { content, isEdited: true, editedAt: new Date() },
+      { new: true }
+    )
+    .populate('senderId', 'name email role')
+    .populate('receiverId', 'name email role');
+    
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found or unauthorized' });
+    }
+    
     res.json(message);
   } catch (error) {
     console.error('Error editing message:', error);
@@ -154,22 +168,21 @@ router.put('/messages/:id', authenticate, async (req, res) => {
   }
 });
 
-// DELETE /api/chat/messages/:id - Delete a message
-router.delete('/messages/:id', authenticate, async (req, res) => {
+// Delete a message
+router.delete('/messages/:messageId', auth, async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const message = await ChatMessage.findOne({
-      _id: id,
+    const { messageId } = req.params;
+    const userId = req.user.userId;
+    
+    const message = await ChatMessage.findOneAndDelete({
+      _id: messageId,
       senderId: userId
     });
-
+    
     if (!message) {
-      return res.status(404).json({ error: 'Message not found or access denied' });
+      return res.status(404).json({ error: 'Message not found or unauthorized' });
     }
-
-    await ChatMessage.findByIdAndDelete(id);
+    
     res.json({ message: 'Message deleted successfully' });
   } catch (error) {
     console.error('Error deleting message:', error);
@@ -177,70 +190,13 @@ router.delete('/messages/:id', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/chat/rooms/create - Create or get existing room
-router.post('/rooms/create', authenticate, async (req, res) => {
+// Mark message as read
+router.post('/messages/:messageId/read', auth, async (req, res) => {
   try {
-    const { participantId } = req.body;
-    const userId = req.user.id;
-
-    if (!participantId) {
-      return res.status(400).json({ error: 'Participant ID is required' });
-    }
-
-    // Verify participant exists
-    const participant = await User.findById(participantId);
-    if (!participant) {
-      return res.status(404).json({ error: 'Participant not found' });
-    }
-
-    // Find existing room or create new one
-    let room = await ChatRoom.findOne({
-      participants: { $all: [userId, participantId] }
-    }).populate('participants', 'name email role');
-
-    if (!room) {
-      room = new ChatRoom({
-        participants: [userId, participantId],
-        lastActivity: new Date(),
-        unreadCount: new Map()
-      });
-      await room.save();
-      await room.populate('participants', 'name email role');
-    }
-
-    res.json(room);
-  } catch (error) {
-    console.error('Error creating/getting room:', error);
-    res.status(500).json({ error: 'Failed to create/get room' });
-  }
-});
-
-// POST /api/chat/messages/:id/read - Mark message as read
-router.post('/messages/:id/read', authenticate, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const message = await ChatMessage.findOne({
-      _id: id,
-      receiverId: userId
-    });
-
-    if (!message) {
-      return res.status(404).json({ error: 'Message not found' });
-    }
-
-    message.isRead = true;
-    await message.save();
-
-    // Update room unread count
-    const room = await ChatRoom.findById(message.roomId);
-    if (room) {
-      const currentUnread = room.unreadCount.get(userId.toString()) || 0;
-      room.unreadCount.set(userId.toString(), Math.max(0, currentUnread - 1));
-      await room.save();
-    }
-
+    const { messageId } = req.params;
+    
+    await ChatMessage.findByIdAndUpdate(messageId, { isRead: true });
+    
     res.json({ message: 'Message marked as read' });
   } catch (error) {
     console.error('Error marking message as read:', error);

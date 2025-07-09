@@ -1,61 +1,65 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { Calendar, Users, Clock, TrendingUp, Eye, Edit, Trash2 } from 'lucide-react';
-import { useAppointments } from '../../hooks/useAppointments';
-import { useAuth } from '../../contexts/AuthContext';
+import { 
+  Calendar, 
+  Users, 
+  Clock, 
+  MessageCircle, 
+  Phone, 
+  Video,
+  Activity,
+  UserCheck,
+  Bell
+} from 'lucide-react';
+import { useDoctorDashboard } from '../../hooks/useDoctorDashboard';
 import { toast } from 'sonner';
+import DoctorChatInterface from '../../components/DoctorChatInterface';
 
 const DoctorDashboard = () => {
-  const { appointments, updateAppointmentStatus, loading } = useAppointments();
-  const { user } = useAuth();
+  const { stats, pendingUsers, loading, error, approveUser } = useDoctorDashboard();
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // Filter appointments for current doctor
-  const doctorAppointments = appointments.filter(apt => 
-    apt.doctorId?._id === user?.id || apt.doctorId === user?.id
-  );
-
-  const todayAppointments = doctorAppointments.filter(apt => {
-    const today = new Date().toDateString();
-    const aptDate = new Date(apt.appointmentDate).toDateString();
-    return today === aptDate;
-  });
-
-  const thisMonthAppointments = doctorAppointments.filter(apt => {
-    const thisMonth = new Date().getMonth();
-    const aptMonth = new Date(apt.appointmentDate).getMonth();
-    return thisMonth === aptMonth;
-  });
-
-  const uniquePatients = [...new Set(doctorAppointments.map(apt => apt.patientEmail))];
-
-  const handleStatusUpdate = async (appointmentId: string, status: string) => {
+  const handleApproveUser = async (userId: string) => {
     try {
-      await updateAppointmentStatus(appointmentId, status);
-      toast.success(`Appointment ${status} successfully`);
+      await approveUser(userId);
+      toast.success('User approved successfully!');
     } catch (error) {
-      toast.error('Failed to update appointment status');
+      toast.error('Failed to approve user');
     }
   };
 
-  const handleDeleteAppointment = async (appointmentId: string) => {
-    try {
-      await updateAppointmentStatus(appointmentId, 'cancelled');
-      toast.success('Appointment cancelled successfully');
-    } catch (error) {
-      toast.error('Failed to cancel appointment');
-    }
+  const handleStartCall = (receiverId: string, type: 'audio' | 'video') => {
+    // This would integrate with your existing call system
+    toast.info(`Starting ${type} call...`);
+    // Add your call initiation logic here
   };
 
-  if (loading) {
+  if (loading && !stats) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center text-red-600">
+            <p>Error loading dashboard: {error}</p>
+          </div>
         </div>
       </Layout>
     );
@@ -63,139 +67,231 @@ const DoctorDashboard = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 to-teal-50 py-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 to-teal-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Doctor Dashboard</h1>
-            <p className="text-gray-600">Manage your appointments and patient care</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Doctor Dashboard</h1>
+            <p className="text-gray-600">Manage your patients and appointments</p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Today's Appointments</p>
-                    <p className="text-2xl font-bold text-gray-900">{todayAppointments.length}</p>
-                  </div>
-                  <Calendar className="w-8 h-8 text-rose-600" />
-                </div>
-              </CardContent>
-            </Card>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="chat" className="flex items-center space-x-2">
+                <MessageCircle className="w-4 h-4" />
+                <span>Patient Chat</span>
+              </TabsTrigger>
+              <TabsTrigger value="appointments">Appointments</TabsTrigger>
+              <TabsTrigger value="approvals" className="relative">
+                Approvals
+                {pendingUsers.length > 0 && (
+                  <Badge className="ml-2 bg-red-500 text-white text-xs">
+                    {pendingUsers.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Patients</p>
-                    <p className="text-2xl font-bold text-gray-900">{uniquePatients.length}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Pending Appointments</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {doctorAppointments.filter(apt => apt.status === 'pending').length}
-                    </p>
-                  </div>
-                  <Clock className="w-8 h-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">This Month</p>
-                    <p className="text-2xl font-bold text-gray-900">{thisMonthAppointments.length}</p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle>Today's Schedule</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {todayAppointments.length > 0 ? (
-                    todayAppointments.slice(0, 5).map((appointment) => (
-                      <div key={appointment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{appointment.patientName}</p>
-                          <p className="text-sm text-gray-600">{appointment.specialtyId?.name || 'Consultation'}</p>
-                          <Badge variant={
-                            appointment.status === 'confirmed' ? 'default' : 
-                            appointment.status === 'pending' ? 'secondary' : 'destructive'
-                          }>
-                            {appointment.status}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <p className="font-medium">{appointment.appointmentTime}</p>
-                          <div className="flex space-x-1">
-                            <Button size="sm" variant="ghost" onClick={() => handleStatusUpdate(appointment._id, 'confirmed')}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteAppointment(appointment._id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-center py-4">No appointments scheduled for today</p>
-                  )}
-                </div>
-                <Button className="w-full mt-4 bg-rose-600 hover:bg-rose-700">
-                  View Full Schedule
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button className="w-full bg-rose-600 hover:bg-rose-700" onClick={() => window.location.href = '/doctor/availability'}>
-                  Manage Availability
-                </Button>
-                <Button variant="outline" className="w-full" onClick={() => window.location.href = '/doctor/profile'}>
-                  Update Profile
-                </Button>
-                <Button variant="outline" className="w-full" onClick={() => toast.info('Reports feature coming soon!')}>
-                  Generate Reports
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => {
-                    const pendingCount = doctorAppointments.filter(apt => apt.status === 'pending').length;
-                    toast.info(`You have ${pendingCount} pending appointments to review`);
-                  }}
+            <TabsContent value="overview" className="space-y-6">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
                 >
-                  View Pending Approvals ({doctorAppointments.filter(apt => apt.status === 'pending').length})
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+                  <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-blue-100">Total Patients</p>
+                          <p className="text-3xl font-bold">{stats?.totalPatients || 0}</p>
+                        </div>
+                        <Users className="w-8 h-8 text-blue-200" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-green-100">Total Appointments</p>
+                          <p className="text-3xl font-bold">{stats?.totalAppointments || 0}</p>
+                        </div>
+                        <Calendar className="w-8 h-8 text-green-200" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-100">Today's Schedule</p>
+                          <p className="text-3xl font-bold">8</p>
+                        </div>
+                        <Clock className="w-8 h-8 text-purple-200" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-orange-100">Pending Approvals</p>
+                          <p className="text-3xl font-bold">{pendingUsers.length}</p>
+                        </div>
+                        <Bell className="w-8 h-8 text-orange-200" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Activity className="w-5 h-5 mr-2 text-rose-600" />
+                    Quick Actions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col space-y-2"
+                      onClick={() => setActiveTab('chat')}
+                    >
+                      <MessageCircle className="w-6 h-6" />
+                      <span>Patient Messages</span>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col space-y-2"
+                      onClick={() => setActiveTab('appointments')}
+                    >
+                      <Calendar className="w-6 h-6" />
+                      <span>View Schedule</span>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col space-y-2"
+                      onClick={() => setActiveTab('approvals')}
+                    >
+                      <UserCheck className="w-6 h-6" />
+                      <span>User Approvals</span>
+                      {pendingUsers.length > 0 && (
+                        <Badge className="bg-red-500 text-white">
+                          {pendingUsers.length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="chat">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MessageCircle className="w-5 h-5 mr-2 text-rose-600" />
+                    Patient Messages
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <DoctorChatInterface onStartCall={handleStartCall} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="appointments">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="w-5 h-5 mr-2 text-rose-600" />
+                    Appointments
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>No appointments scheduled for today</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="approvals">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <UserCheck className="w-5 h-5 mr-2 text-rose-600" />
+                    Pending User Approvals
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {pendingUsers.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <UserCheck className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>No pending approvals</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingUsers.map((user) => (
+                        <div key={user._id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <h4 className="font-medium">{user.name}</h4>
+                            <p className="text-sm text-gray-600">{user.email}</p>
+                            <div className="flex space-x-2 mt-1">
+                              <Badge variant="secondary">{user.role}</Badge>
+                              {user.specialty && (
+                                <Badge variant="outline">{user.specialty}</Badge>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => handleApproveUser(user._id)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <UserCheck className="w-4 h-4 mr-2" />
+                            Approve
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </Layout>
