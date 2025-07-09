@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Specialty = require('../models/Specialty');
-const { authenticate } = require('../middleware/auth');
+const authenticate = require('../middleware/auth');
 
 // GET /api/specialties - Get all active specialties (PUBLIC)
 router.get('/', async (req, res) => {
