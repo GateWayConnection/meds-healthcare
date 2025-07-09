@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Stats = require('../models/Stats');
-const { authenticate } = require('../middleware/auth');
+const authenticate = require('../middleware/auth');
 
 // GET /api/stats - Get current stats
 router.get('/', async (req, res) => {
