@@ -43,7 +43,7 @@ class ChatApiService {
   // Get user's chat rooms
   async getChatRooms(): Promise<ChatRoom[]> {
     try {
-      const response = await fetch(`${apiService.baseURL}/api/chat/rooms`, {
+      const response = await fetch(`${apiService.baseURL}/chat/rooms`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -64,7 +64,7 @@ class ChatApiService {
   // Get messages for a specific room
   async getRoomMessages(roomId: string): Promise<ChatMessage[]> {
     try {
-      const response = await fetch(`${apiService.baseURL}/api/chat/messages/${roomId}`, {
+      const response = await fetch(`${apiService.baseURL}/chat/messages/${roomId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -89,7 +89,7 @@ class ChatApiService {
     type?: string;
   }): Promise<ChatMessage> {
     try {
-      const response = await fetch(`${apiService.baseURL}/api/chat/messages`, {
+      const response = await fetch(`${apiService.baseURL}/chat/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -112,7 +112,7 @@ class ChatApiService {
   // Edit a message
   async editMessage(messageId: string, content: string): Promise<ChatMessage> {
     try {
-      const response = await fetch(`${apiService.baseURL}/api/chat/messages/${messageId}`, {
+      const response = await fetch(`${apiService.baseURL}/chat/messages/${messageId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -135,7 +135,7 @@ class ChatApiService {
   // Delete a message
   async deleteMessage(messageId: string): Promise<void> {
     try {
-      const response = await fetch(`${apiService.baseURL}/api/chat/messages/${messageId}`, {
+      const response = await fetch(`${apiService.baseURL}/chat/messages/${messageId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -155,7 +155,7 @@ class ChatApiService {
   // Create or get existing chat room
   async createChatRoom(participantId: string): Promise<ChatRoom> {
     try {
-      const response = await fetch(`${apiService.baseURL}/api/chat/rooms/create`, {
+      const response = await fetch(`${apiService.baseURL}/chat/rooms/create`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -178,7 +178,7 @@ class ChatApiService {
   // Mark message as read
   async markMessageAsRead(messageId: string): Promise<void> {
     try {
-      const response = await fetch(`${apiService.baseURL}/api/chat/messages/${messageId}/read`, {
+      const response = await fetch(`${apiService.baseURL}/chat/messages/${messageId}/read`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
