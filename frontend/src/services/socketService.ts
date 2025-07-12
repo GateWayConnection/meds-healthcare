@@ -7,8 +7,12 @@ class SocketService {
   connect(userId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // Connect to server
-        this.socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+        // Connect to server - Socket.IO runs on root, not /api
+        const socketUrl = import.meta.env.VITE_API_URL 
+          ? import.meta.env.VITE_API_URL.replace('/api', '') 
+          : 'http://localhost:5000';
+        
+        this.socket = io(socketUrl, {
           transports: ['websocket', 'polling']
         });
 
