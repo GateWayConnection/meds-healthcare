@@ -11,7 +11,7 @@ import {
   Mic, 
   MicOff,
   Speaker,
-  SpeakerX
+  VolumeX
 } from 'lucide-react';
 import { socketService } from '../services/socketService';
 import { toast } from 'sonner';
@@ -304,7 +304,7 @@ const CallModal: React.FC<CallModalProps> = ({
                         variant={isSpeakerOn ? "secondary" : "outline"}
                         className="rounded-full w-12 h-12"
                       >
-                        {isSpeakerOn ? <Speaker className="w-5 h-5" /> : <SpeakerX className="w-5 h-5" />}
+                        {isSpeakerOn ? <Speaker className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
                       </Button>
                       
                       <Button
