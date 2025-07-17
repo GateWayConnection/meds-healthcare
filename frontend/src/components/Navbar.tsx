@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNotifications } from '../hooks/useNotifications';
+import { useChatNotifications } from '../hooks/useChatNotifications';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Menu, X, Globe, User, LogOut, MessageCircle, Bell } from 'lucide-react';
@@ -20,6 +21,7 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { unreadCount, notifications, markAllAsRead } = useNotifications();
+  const { chatNotifications } = useChatNotifications();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -69,9 +71,14 @@ const Navbar = () => {
             
             {/* Chat for logged in users */}
             {user && (
-              <Link to="/chat" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors">
+              <Link to="/chat" className="flex items-center space-x-1 text-gray-700 hover:text-rose-600 transition-colors relative">
                 <MessageCircle size={16} />
                 <span>{t('nav.chat')}</span>
+                {chatNotifications.hasUnreadMessages && (
+                  <Badge className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0">
+                    {chatNotifications.unreadCount > 9 ? '9+' : chatNotifications.unreadCount}
+                  </Badge>
+                )}
               </Link>
             )}
           </div>
@@ -217,8 +224,15 @@ const Navbar = () => {
               </Link>
               
               {user && (
-                <Link to="/chat" className="block px-3 py-2 text-gray-700 hover:text-rose-600">
-                  {t('nav.chat')}
+                <Link to="/chat" className="block px-3 py-2 text-gray-700 hover:text-rose-600 relative">
+                  <div className="flex items-center gap-2">
+                    {t('nav.chat')}
+                    {chatNotifications.hasUnreadMessages && (
+                      <Badge className="h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0">
+                        {chatNotifications.unreadCount > 9 ? '9+' : chatNotifications.unreadCount}
+                      </Badge>
+                    )}
+                  </div>
                 </Link>
               )}
               

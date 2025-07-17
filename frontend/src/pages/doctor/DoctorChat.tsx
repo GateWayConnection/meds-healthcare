@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { chatApiService, ChatRoom, ChatMessage } from '../../services/chatApi';
 import { socketService } from '../../services/socketService';
 import { toast } from 'sonner';
+import CallModal from '../../components/CallModal';
 
 const DoctorChat = () => {
   const { user } = useAuth();
@@ -19,6 +20,8 @@ const DoctorChat = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [incomingCallData, setIncomingCallData] = useState<any>(null);
 
   useEffect(() => {
     loadChatRooms();
@@ -86,13 +89,33 @@ const DoctorChat = () => {
       callType: type
     });
     
+    // Show outgoing call modal
+    setIncomingCallData({
+      callerId: user.id,
+      callerName: otherParticipant.name,
+      callType: type,
+      socketId: '' // Will be handled by socket
+    });
+    setCallModalOpen(true);
+    
     toast.success(`Calling ${otherParticipant.name}...`);
   };
 
   const setupSocketListeners = () => {
+    // Connect to socket first
+    if (user) {
+      socketService.connect(user.id);
+    }
+    
     // Listen for new messages
     socketService.onNewMessage((message: ChatMessage) => {
-      setMessages(prev => [...prev, message]);
+      console.log('👨‍⚕️ Doctor received new message:', message);
+      setMessages(prev => {
+        // Avoid duplicates
+        const exists = prev.find(m => m._id === message._id);
+        if (exists) return prev;
+        return [...prev, message];
+      });
       
       // Update chat rooms list with new message
       setChatRooms(prev => prev.map(room => 
@@ -104,24 +127,9 @@ const DoctorChat = () => {
 
     // Listen for incoming calls
     socketService.onIncomingCall((callData: any) => {
-      const confirmCall = window.confirm(
-        `Incoming ${callData.callType} call from ${callData.callerName}. Accept?`
-      );
-      
-      if (confirmCall) {
-        socketService.respondToCall({
-          targetSocketId: callData.socketId,
-          accepted: true,
-          callData: { acceptedBy: user?.name }
-        });
-        // Redirect to call page or handle call UI
-        toast.success('Call accepted');
-      } else {
-        socketService.respondToCall({
-          targetSocketId: callData.socketId,
-          accepted: false
-        });
-      }
+      console.log('👨‍⚕️ Doctor received incoming call from:', callData.callerName);
+      setIncomingCallData(callData);
+      setCallModalOpen(true);
     });
   };
 
@@ -133,6 +141,8 @@ const DoctorChat = () => {
 
     try {
       setSending(true);
+      console.log('👨‍⚕️ Doctor sending message:', newMessage.trim());
+      
       // Send via socket for real-time delivery
       socketService.sendMessage({
         senderId: user.id,
@@ -415,6 +425,18 @@ const DoctorChat = () => {
             </Card>
           </div>
         </div>
+
+        {/* Call Modal */}
+        <CallModal
+          isOpen={callModalOpen}
+          onClose={() => {
+            setCallModalOpen(false);
+            setIncomingCallData(null);
+          }}
+          callData={incomingCallData}
+          user={user}
+          isIncoming={incomingCallData?.callerId !== user?.id}
+        />
       </div>
     </Layout>
   );

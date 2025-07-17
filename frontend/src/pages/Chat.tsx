@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useDoctors } from '../hooks/useDoctors';
 import { socketService } from '../services/socketService';
 import { chatApiService, ChatMessage, ChatRoom } from '../services/chatApi';
+import CallModal from '../components/CallModal';
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -25,6 +26,8 @@ const Chat = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [room, setRoom] = useState<ChatRoom | null>(null);
   const [loading, setLoading] = useState(true);
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [incomingCallData, setIncomingCallData] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const doctorId = searchParams.get('doctor');
@@ -71,12 +74,14 @@ const Chat = () => {
       const chatRoom = await chatApiService.createChatRoom(doctorId);
       setRoom(chatRoom);
       
-      // Join the room
-      socketService.joinRoom(chatRoom._id, user.id);
-      
-      // Load existing messages
+      // Load existing messages first
       const roomMessages = await chatApiService.getRoomMessages(chatRoom._id);
+      console.log('📋 Loaded', roomMessages.length, 'existing messages');
       setMessages(roomMessages);
+      
+      // Join the room after loading messages
+      socketService.joinRoom(chatRoom._id, user.id);
+      console.log('🏠 Joined room:', chatRoom._id);
       
       // Mark messages as read when entering chat
       const unreadMessages = roomMessages.filter(msg => 
@@ -100,7 +105,18 @@ const Chat = () => {
   const setupSocketListeners = () => {
     // Listen for new messages
     socketService.onNewMessage((message: ChatMessage) => {
-      setMessages(prev => [...prev, message]);
+      console.log('🔔 New message received:', message);
+      setMessages(prev => {
+        // Avoid duplicates
+        const exists = prev.find(m => m._id === message._id);
+        if (exists) return prev;
+        return [...prev, message];
+      });
+      
+      // Auto-scroll to new message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     });
 
     // Listen for edited messages
@@ -130,23 +146,9 @@ const Chat = () => {
 
     // Listen for incoming calls
     socketService.onIncomingCall((callData: any) => {
-      const confirmCall = window.confirm(
-        `Incoming ${callData.callType} call from Dr. ${callData.callerName}. Accept?`
-      );
-      
-      if (confirmCall) {
-        socketService.respondToCall({
-          targetSocketId: callData.socketId,
-          accepted: true,
-          callData: { acceptedBy: user?.name }
-        });
-        toast.success('Call accepted');
-      } else {
-        socketService.respondToCall({
-          targetSocketId: callData.socketId,
-          accepted: false
-        });
-      }
+      console.log('📞 Incoming call from:', callData.callerName);
+      setIncomingCallData(callData);
+      setCallModalOpen(true);
     });
   };
 
@@ -166,6 +168,8 @@ const Chat = () => {
   const handleSendMessage = () => {
     if (!newMessage.trim() || !user || !doctorId) return;
 
+    console.log('📤 Sending message:', newMessage.trim());
+    
     // Send message via socket
     socketService.sendMessage({
       senderId: user.id,
@@ -226,6 +230,15 @@ const Chat = () => {
       receiverId: doctorId,
       callType: type
     });
+    
+    // Show outgoing call modal
+    setIncomingCallData({
+      callerId: user.id,
+      callerName: doctor?.name || 'Doctor',
+      callType: type,
+      socketId: '' // Will be handled by socket
+    });
+    setCallModalOpen(true);
     
     toast.success(`Calling ${doctor?.name}...`);
   };
@@ -389,6 +402,18 @@ const Chat = () => {
           </div>
         </div>
       </div>
+
+      {/* Call Modal */}
+      <CallModal
+        isOpen={callModalOpen}
+        onClose={() => {
+          setCallModalOpen(false);
+          setIncomingCallData(null);
+        }}
+        callData={incomingCallData}
+        user={user}
+        isIncoming={incomingCallData?.callerId !== user?.id}
+      />
     </div>
   );
 };
