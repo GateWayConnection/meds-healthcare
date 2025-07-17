@@ -33,6 +33,7 @@ import PatientProfile from "./pages/patient/PatientProfile";
 
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
+import DoctorChat from "./pages/doctor/DoctorChat";
 import ManageAvailability from "./pages/doctor/ManageAvailability";
 import DoctorProfile from "./pages/doctor/DoctorProfile";
 
@@ -86,6 +87,7 @@ const App = () => (
                 
                 {/* Doctor Routes */}
                 <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
+                <Route path="/doctor/chat" element={<DoctorChat />} />
                 <Route path="/doctor/availability" element={<ManageAvailability />} />
                 <Route path="/doctor/profile" element={<DoctorProfile />} />
                 

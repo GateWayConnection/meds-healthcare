@@ -7,9 +7,14 @@ const User = require('../models/User');
  */
 const authenticate = async (req, res, next) => {
   try {
+    console.log('🔐 Auth middleware called for:', req.method, req.url);
+    
     // Get token from Authorization header
     const authHeader = req.header('Authorization');
+    console.log('🔑 Auth header:', authHeader ? 'Present' : 'Missing');
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Auth failed: No token or invalid format');
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided or invalid format.'

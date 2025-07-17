@@ -157,6 +157,7 @@ class ChatApiService {
     try {
       console.log('🔄 Creating chat room for participant:', participantId);
       console.log('🌐 Using baseURL:', apiService.baseURL);
+      console.log('🔑 Auth token:', localStorage.getItem('token') ? 'Present' : 'Missing');
       
       const response = await fetch(`${apiService.baseURL}/chat/rooms/create`, {
         method: 'POST',

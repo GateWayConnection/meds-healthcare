@@ -177,6 +177,9 @@ const DoctorDashboard = () => {
                 <Button className="w-full bg-rose-600 hover:bg-rose-700" onClick={() => window.location.href = '/doctor/availability'}>
                   Manage Availability
                 </Button>
+                <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => window.location.href = '/doctor/chat'}>
+                  📱 Chat Inbox
+                </Button>
                 <Button variant="outline" className="w-full" onClick={() => window.location.href = '/doctor/profile'}>
                   Update Profile
                 </Button>

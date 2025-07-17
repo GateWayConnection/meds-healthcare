@@ -188,6 +188,8 @@ router.post('/rooms/create', authenticate, async (req, res) => {
     console.log('🔄 Chat room creation request received');
     console.log('📝 Request body:', req.body);
     console.log('👤 User ID:', req.user?.id);
+    console.log('📝 Headers:', req.headers);
+    console.log('🔑 Auth header:', req.header('Authorization'));
     
     const { participantId } = req.body;
     const userId = req.user.id;
@@ -262,4 +264,5 @@ router.post('/messages/:id/read', authenticate, async (req, res) => {
   }
 });
 
+console.log('📊 Chat routes module loaded successfully');
 module.exports = router;
