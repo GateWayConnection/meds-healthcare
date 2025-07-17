@@ -1,149 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
-import { MessageCircle, Send, Video, Phone, Search, MoreVertical, Edit, Trash2 } from 'lucide-react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { chatApiService, ChatRoom, ChatMessage } from '../../services/chatApi';
 import { socketService } from '../../services/socketService';
-import { toast } from 'sonner';
-import CallModal from '../../components/CallModal';
+import { chatApiService, ChatMessage, ChatRoom } from '../../services/chatApi';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Send, Phone, Video, MessageCircle, Users, ArrowLeft } from 'lucide-react';
+import { useToast } from '../../hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
+
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface CallState {
+  isInCall: boolean;
+  isIncoming: boolean;
+  isOutgoing: boolean;
+  callType: 'audio' | 'video' | null;
+  callerName: string;
+  callerId: string;
+  receiverId: string;
+}
 
 const DoctorChat = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [callModalOpen, setCallModalOpen] = useState(false);
-  const [incomingCallData, setIncomingCallData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const [callState, setCallState] = useState<CallState>({
+    isInCall: false,
+    isIncoming: false,
+    isOutgoing: false,
+    callType: null,
+    callerName: '',
+    callerId: '',
+    receiverId: ''
+  });
 
+  // Initialize socket connection and load data
   useEffect(() => {
-    loadChatRooms();
-    setupSocketListeners();
-    
-    return () => {
-      // Cleanup socket listeners
-      socketService.removeListener('new_message');
-      socketService.removeListener('message_edited');
-      socketService.removeListener('message_deleted');
-      socketService.removeListener('incoming_call');
+    if (!user) return;
+
+    const initializeChat = async () => {
+      try {
+        console.log('🔄 Doctor initializing chat for user:', user.id);
+        
+        // Connect to socket
+        await socketService.connect(user.id);
+        console.log('✅ Doctor socket connected');
+        
+        // Load chat rooms
+        await loadChatRooms();
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('❌ Error initializing doctor chat:', error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize chat system",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+      }
     };
-  }, []);
 
+    initializeChat();
+
+    // Socket event listeners
+    socketService.onNewMessage(handleNewMessage);
+    socketService.onMessageRead(handleMessageRead);
+    socketService.onIncomingCall(handleIncomingCall);
+    socketService.onCallResponse(handleCallResponse);
+    socketService.onCallEnded(handleCallEnded);
+
+    return () => {
+      socketService.removeListener('new_message');
+      socketService.removeListener('message_read');
+      socketService.removeListener('incoming_call');
+      socketService.removeListener('call_response');
+      socketService.removeListener('call_ended');
+    };
+  }, [user]);
+
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (selectedRoom) {
-      loadMessages(selectedRoom._id);
-    }
-  }, [selectedRoom]);
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const loadChatRooms = async () => {
     try {
-      setLoading(true);
+      console.log('📂 Doctor loading chat rooms...');
       const rooms = await chatApiService.getChatRooms();
+      console.log('📂 Doctor loaded rooms:', rooms.length);
       setChatRooms(rooms);
     } catch (error) {
-      console.error('Error loading chat rooms:', error);
-      toast.error('Failed to load chat rooms');
-    } finally {
-      setLoading(false);
+      console.error('❌ Error loading chat rooms:', error);
     }
   };
 
   const loadMessages = async (roomId: string) => {
     try {
+      console.log('💬 Doctor loading messages for room:', roomId);
       const roomMessages = await chatApiService.getRoomMessages(roomId);
+      console.log('💬 Doctor loaded messages:', roomMessages.length);
       setMessages(roomMessages);
       
-      // Join the room for real-time updates
-      socketService.joinRoom(roomId, user.id);
-      
-      // Mark messages as read when doctor enters chat
+      // Mark messages as read
       const unreadMessages = roomMessages.filter(msg => 
-        msg.receiverId._id === user.id && !msg.isRead
+        !msg.isRead && msg.receiverId._id === user?.id
       );
-      for (const message of unreadMessages) {
-        socketService.markAsRead({ messageId: message._id, userId: user.id });
+      
+      for (const msg of unreadMessages) {
+        try {
+          await chatApiService.markMessageAsRead(msg._id);
+          socketService.markAsRead({ messageId: msg._id, userId: user!.id });
+        } catch (error) {
+          console.error('❌ Error marking message as read:', error);
+        }
       }
     } catch (error) {
-      console.error('Error loading messages:', error);
-      toast.error('Failed to load messages');
+      console.error('❌ Error loading messages:', error);
     }
   };
 
-  const handleInitiateCall = (type: 'audio' | 'video') => {
-    if (!selectedRoom || !user) return;
+  const handleRoomSelect = async (room: ChatRoom) => {
+    console.log('🏠 Doctor selecting room:', room._id);
+    setSelectedRoom(room);
+    await loadMessages(room._id);
     
-    const otherParticipant = selectedRoom.participants.find(p => p._id !== user.id);
-    if (!otherParticipant) return;
-    
-    // Initiate call via socket
-    socketService.initiateCall({
-      callerId: user.id,
-      receiverId: otherParticipant._id,
-      callType: type
-    });
-    
-    // Show outgoing call modal
-    setIncomingCallData({
-      callerId: user.id,
-      callerName: otherParticipant.name,
-      callType: type,
-      socketId: '' // Will be handled by socket
-    });
-    setCallModalOpen(true);
-    
-    toast.success(`Calling ${otherParticipant.name}...`);
-  };
-
-  const setupSocketListeners = () => {
-    // Connect to socket first
+    // Join the socket room
     if (user) {
-      socketService.connect(user.id);
+      socketService.joinRoom(room._id, user.id);
     }
-    
-    // Listen for new messages
-    socketService.onNewMessage((message: ChatMessage) => {
-      console.log('👨‍⚕️ Doctor received new message:', message);
-      setMessages(prev => {
-        // Avoid duplicates
-        const exists = prev.find(m => m._id === message._id);
-        if (exists) return prev;
-        return [...prev, message];
-      });
-      
-      // Update chat rooms list with new message
-      setChatRooms(prev => prev.map(room => 
-        room._id === message.roomId 
-          ? { ...room, lastMessage: message, lastActivity: new Date().toISOString() }
-          : room
-      ));
-    });
-
-    // Listen for incoming calls
-    socketService.onIncomingCall((callData: any) => {
-      console.log('👨‍⚕️ Doctor received incoming call from:', callData.callerName);
-      setIncomingCallData(callData);
-      setCallModalOpen(true);
-    });
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedRoom || sending) return;
-
-    const otherParticipant = selectedRoom.participants.find(p => p._id !== user?.id);
-    if (!otherParticipant) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedRoom || !user) return;
 
     try {
-      setSending(true);
-      console.log('👨‍⚕️ Doctor sending message:', newMessage.trim());
+      console.log('📤 Doctor sending message:', newMessage);
       
-      // Send via socket for real-time delivery
+      const otherParticipant = selectedRoom.participants.find(p => p._id !== user.id);
+      if (!otherParticipant) return;
+
+      // Send via API first
+      const savedMessage = await chatApiService.sendMessage({
+        receiverId: otherParticipant._id,
+        content: newMessage.trim(),
+        type: 'text'
+      });
+
+      // Send via socket for real-time updates
       socketService.sendMessage({
         senderId: user.id,
         receiverId: otherParticipant._id,
@@ -151,294 +175,426 @@ const DoctorChat = () => {
         type: 'text'
       });
 
+      // Add message to local state immediately for better UX
+      const newMsg: ChatMessage = {
+        ...savedMessage,
+        senderId: {
+          _id: user.id,
+          name: user.name || user.email,
+          email: user.email,
+          role: user.role
+        },
+        receiverId: otherParticipant
+      };
+
+      setMessages(prev => [...prev, newMsg]);
       setNewMessage('');
       
-      toast.success('Message sent successfully');
+      console.log('✅ Doctor message sent successfully');
     } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
-    } finally {
-      setSending(false);
+      console.error('❌ Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
     }
   };
 
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+  const handleNewMessage = (data: { message: ChatMessage; roomId: string }) => {
+    console.log('📨 Doctor received new message:', data);
+    
+    if (selectedRoom && data.roomId === selectedRoom._id) {
+      setMessages(prev => {
+        // Check if message already exists to avoid duplicates
+        const exists = prev.some(msg => msg._id === data.message._id);
+        if (exists) return prev;
+        
+        return [...prev, data.message];
+      });
+    }
+    
+    // Refresh chat rooms to update last message
+    loadChatRooms();
+  };
+
+  const handleMessageRead = (data: { messageId: string }) => {
+    setMessages(prev => 
+      prev.map(msg => 
+        msg._id === data.messageId 
+          ? { ...msg, isRead: true }
+          : msg
+      )
+    );
+  };
+
+  const handleIncomingCall = (callData: any) => {
+    console.log('📞 Doctor incoming call:', callData);
+    
+    setCallState({
+      isInCall: false,
+      isIncoming: true,
+      isOutgoing: false,
+      callType: callData.callType,
+      callerName: callData.callerName || 'Unknown',
+      callerId: callData.callerId,
+      receiverId: user?.id || ''
+    });
+
+    toast({
+      title: `Incoming ${callData.callType} call`,
+      description: `${callData.callerName || 'A patient'} is calling you`,
+      duration: 10000
     });
   };
 
-  const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const today = new Date();
-    
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
+  const handleCallResponse = (data: any) => {
+    if (data.accepted) {
+      setCallState(prev => ({
+        ...prev,
+        isInCall: true,
+        isIncoming: false,
+        isOutgoing: false
+      }));
+      
+      toast({
+        title: "Call Connected",
+        description: "You are now connected to the call"
+      });
+    } else {
+      setCallState({
+        isInCall: false,
+        isIncoming: false,
+        isOutgoing: false,
+        callType: null,
+        callerName: '',
+        callerId: '',
+        receiverId: ''
+      });
+      
+      toast({
+        title: "Call Declined",
+        description: "The call was declined"
+      });
     }
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    
-    if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    }
-    
-    return date.toLocaleDateString();
   };
 
-  if (loading) {
+  const handleCallEnded = () => {
+    setCallState({
+      isInCall: false,
+      isIncoming: false,
+      isOutgoing: false,
+      callType: null,
+      callerName: '',
+      callerId: '',
+      receiverId: ''
+    });
+    
+    toast({
+      title: "Call Ended",
+      description: "The call has been ended"
+    });
+  };
+
+  const initiateCall = (callType: 'audio' | 'video') => {
+    if (!selectedRoom || !user) return;
+    
+    const otherParticipant = selectedRoom.participants.find(p => p._id !== user.id);
+    if (!otherParticipant) return;
+
+    console.log('📞 Doctor initiating call:', callType);
+    
+    setCallState({
+      isInCall: false,
+      isIncoming: false,
+      isOutgoing: true,
+      callType,
+      callerName: otherParticipant.name,
+      callerId: user.id,
+      receiverId: otherParticipant._id
+    });
+
+    socketService.initiateCall({
+      callerId: user.id,
+      receiverId: otherParticipant._id,
+      callType
+    });
+
+    toast({
+      title: "Calling...",
+      description: `Calling ${otherParticipant.name}`
+    });
+  };
+
+  const acceptCall = () => {
+    socketService.respondToCall({
+      targetSocketId: callState.callerId,
+      accepted: true,
+      callData: callState
+    });
+  };
+
+  const declineCall = () => {
+    socketService.respondToCall({
+      targetSocketId: callState.callerId,
+      accepted: false
+    });
+    
+    setCallState({
+      isInCall: false,
+      isIncoming: false,
+      isOutgoing: false,
+      callType: null,
+      callerName: '',
+      callerId: '',
+      receiverId: ''
+    });
+  };
+
+  const endCall = () => {
+    const targetId = callState.isOutgoing ? callState.receiverId : callState.callerId;
+    socketService.endCall({ targetSocketId: targetId });
+    
+    setCallState({
+      isInCall: false,
+      isIncoming: false,
+      isOutgoing: false,
+      callType: null,
+      callerName: '',
+      callerId: '',
+      receiverId: ''
+    });
+  };
+
+  if (isLoading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading chat...</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 to-teal-50 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">📱 Chat Inbox</h1>
-            <p className="text-gray-600">Communicate with your patients in real-time</p>
-          </motion.div>
+    <div className="flex h-screen bg-gray-50">
+      {/* Incoming Call Modal */}
+      {callState.isIncoming && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader className="text-center">
+              <CardTitle>Incoming {callState.callType} Call</CardTitle>
+              <p className="text-lg font-medium">{callState.callerName}</p>
+            </CardHeader>
+            <CardContent className="flex gap-4 justify-center">
+              <Button onClick={acceptCall} className="bg-green-500 hover:bg-green-600">
+                Accept
+              </Button>
+              <Button onClick={declineCall} variant="destructive">
+                Decline
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-            {/* Chat List */}
-            <Card className="shadow-lg lg:col-span-1">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="w-5 h-5" />
-                  Patient Conversations
-                </CardTitle>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search conversations..."
-                    className="pl-10"
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="max-h-[500px] overflow-y-auto">
-                  {chatRooms.length > 0 ? (
-                    chatRooms.map((room) => {
-                      const otherParticipant = room.participants.find(p => p._id !== user?.id);
-                      const unreadCount = room.unreadCount?.get?.(user?.id || '') || 0;
-                      
-                      return (
-                        <div
-                          key={room._id}
-                          className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors ${
-                            selectedRoom?._id === room._id ? 'bg-blue-50 border-blue-200' : ''
-                          }`}
-                          onClick={() => setSelectedRoom(room)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-medium text-gray-900 truncate">
-                                  {otherParticipant?.name || 'Unknown User'}
-                                </h3>
-                                <Badge variant="secondary" className="text-xs">
-                                  {otherParticipant?.role || 'patient'}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-gray-600 truncate">
-                                {room.lastMessage?.content || 'No messages yet'}
-                              </p>
-                              <p className="text-xs text-gray-400">
-                                {room.lastActivity ? formatDate(room.lastActivity) : ''}
-                              </p>
-                            </div>
-                            {unreadCount > 0 && (
-                              <Badge className="bg-red-500 text-white rounded-full">
-                                {unreadCount}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="p-8 text-center text-gray-500">
-                      <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p>No conversations yet</p>
-                      <p className="text-sm">Patients will appear here when they start a chat</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Chat Messages */}
-            <Card className="shadow-lg lg:col-span-2">
-              {selectedRoom ? (
-                <>
-                  <CardHeader className="border-b">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <h3 className="font-medium">
-                            {selectedRoom.participants.find(p => p._id !== user?.id)?.name || 'Unknown User'}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            {selectedRoom.participants.find(p => p._id !== user?.id)?.email}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="text-green-600 border-green-600 hover:bg-green-50"
-                          onClick={() => handleInitiateCall('audio')}
-                        >
-                          <Phone className="w-4 h-4 mr-1" />
-                          Audio Call
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                          onClick={() => handleInitiateCall('video')}
-                        >
-                          <Video className="w-4 h-4 mr-1" />
-                          Video Call
-                        </Button>
-                        <Button size="sm" variant="ghost">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="p-0">
-                    {/* Messages */}
-                    <div className="h-[400px] overflow-y-auto p-4 space-y-4">
-                      {messages.length > 0 ? (
-                        messages.map((message) => {
-                          const isMyMessage = message.senderId._id === user?.id;
-                          
-                          return (
-                            <div
-                              key={message._id}
-                              className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
-                            >
-                              <div
-                                className={`max-w-[70%] p-3 rounded-lg ${
-                                  isMyMessage
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-100 text-gray-900'
-                                }`}
-                              >
-                                <p className="text-sm">{message.content}</p>
-                                <div className="flex items-center justify-between mt-1">
-                                  <p className={`text-xs ${isMyMessage ? 'text-blue-100' : 'text-gray-500'}`}>
-                                    {formatTime(message.createdAt)}
-                                  </p>
-                                  {isMyMessage && (
-                                    <div className="flex items-center gap-1 ml-2">
-                                      {message.isEdited && (
-                                        <span className="text-xs text-blue-100">edited</span>
-                                      )}
-                                      <button
-                                        className="text-blue-100 hover:text-white"
-                                        onClick={() => {
-                                          // TODO: Implement edit message
-                                          toast.info('Edit message feature coming soon');
-                                        }}
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        className="text-blue-100 hover:text-white"
-                                        onClick={() => {
-                                          // TODO: Implement delete message
-                                          toast.info('Delete message feature coming soon');
-                                        }}
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-center text-gray-500 py-8">
-                          <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                          <p>No messages in this conversation</p>
-                          <p className="text-sm">Start the conversation by sending a message below</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Message Input */}
-                    <div className="border-t p-4">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="Type your message..."
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              sendMessage();
-                            }
-                          }}
-                          className="flex-1"
-                        />
-                        <Button
-                          onClick={sendMessage}
-                          disabled={!newMessage.trim() || sending}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          {sending ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                          ) : (
-                            <Send className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </>
-              ) : (
-                <CardContent className="flex items-center justify-center h-full">
-                  <div className="text-center text-gray-500">
-                    <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-                    <p>Choose a patient from the list to start chatting</p>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
+      {/* Chat Rooms Sidebar */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate('/doctor/dashboard')}
+              className="mr-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Patient Chats
+            </h2>
           </div>
         </div>
-
-        {/* Call Modal */}
-        <CallModal
-          isOpen={callModalOpen}
-          onClose={() => {
-            setCallModalOpen(false);
-            setIncomingCallData(null);
-          }}
-          callData={incomingCallData}
-          user={user}
-          isIncoming={incomingCallData?.callerId !== user?.id}
-        />
+        
+        <div className="flex-1 overflow-y-auto">
+          {chatRooms.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <p>No patient conversations yet</p>
+            </div>
+          ) : (
+            chatRooms.map((room) => {
+              const otherParticipant = room.participants.find(p => p._id !== user?.id);
+              const unreadCount = room.unreadCount?.get?.(user?.id || '') || 0;
+              
+              return (
+                <div
+                  key={room._id}
+                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                    selectedRoom?._id === room._id ? 'bg-blue-50 border-blue-200' : ''
+                  }`}
+                  onClick={() => handleRoomSelect(room)}
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src="" />
+                      <AvatarFallback>
+                        {otherParticipant?.name?.charAt(0) || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-gray-900 truncate">
+                          {otherParticipant?.name || 'Unknown Patient'}
+                        </p>
+                        {unreadCount > 0 && (
+                          <Badge variant="destructive" className="ml-2">
+                            {unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 capitalize">
+                        {otherParticipant?.role || 'Patient'}
+                      </p>
+                      {room.lastMessage && (
+                        <p className="text-sm text-gray-600 truncate mt-1">
+                          Last message...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
-    </Layout>
+
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {selectedRoom ? (
+          <>
+            {/* Chat Header */}
+            <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src="" />
+                  <AvatarFallback>
+                    {selectedRoom.participants.find(p => p._id !== user?.id)?.name?.charAt(0) || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-medium">
+                    {selectedRoom.participants.find(p => p._id !== user?.id)?.name || 'Unknown Patient'}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Patient
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => initiateCall('audio')}
+                  disabled={callState.isInCall || callState.isOutgoing}
+                >
+                  <Phone className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => initiateCall('video')}
+                  disabled={callState.isInCall || callState.isOutgoing}
+                >
+                  <Video className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Call Status */}
+            {(callState.isOutgoing || callState.isInCall) && (
+              <div className="p-3 bg-blue-50 border-b border-blue-200 text-center">
+                {callState.isOutgoing && (
+                  <p className="text-blue-700">Calling {callState.callerName}...</p>
+                )}
+                {callState.isInCall && (
+                  <div className="flex items-center justify-center gap-4">
+                    <p className="text-blue-700">Connected to {callState.callerName}</p>
+                    <Button size="sm" variant="destructive" onClick={endCall}>
+                      End Call
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((message) => {
+                const isOwnMessage = message.senderId._id === user?.id;
+                
+                return (
+                  <div
+                    key={message._id}
+                    className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        isOwnMessage
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-900'
+                      }`}
+                    >
+                      <p>{message.content}</p>
+                      <p
+                        className={`text-xs mt-1 ${
+                          isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+                        }`}
+                      >
+                        {new Date(message.createdAt).toLocaleTimeString()}
+                        {isOwnMessage && message.isRead && (
+                          <span className="ml-1">✓✓</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input */}
+            <div className="p-4 bg-white border-t border-gray-200">
+              <div className="flex gap-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  className="flex-1"
+                />
+                <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No chat selected</h3>
+              <p className="text-gray-500">Choose a patient conversation from the sidebar to start chatting</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

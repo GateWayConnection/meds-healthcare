@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { chatApiService } from '../services/chatApi';
@@ -21,25 +22,42 @@ export const useChatNotifications = () => {
     // Initialize socket connection
     const initializeChat = async () => {
       try {
+        console.log('🔔 Initializing chat notifications for:', user.id);
         await socketService.connect(user.id);
         await loadUnreadCount();
       } catch (error) {
-        console.error('Error initializing chat notifications:', error);
+        console.error('❌ Error initializing chat notifications:', error);
       }
     };
 
     initializeChat();
 
     // Listen for new messages to update unread count
-    socketService.onMessageNotification((data: any) => {
+    const handleMessageNotification = (data: any) => {
+      console.log('🔔 New message notification:', data);
       setChatNotifications(prev => ({
         unreadCount: prev.unreadCount + 1,
         hasUnreadMessages: true
       }));
-    });
+    };
+
+    const handleNewMessage = (data: any) => {
+      console.log('🔔 New message received:', data);
+      // Only increment if the message is not from the current user
+      if (data.message.senderId._id !== user.id) {
+        setChatNotifications(prev => ({
+          unreadCount: prev.unreadCount + 1,
+          hasUnreadMessages: true
+        }));
+      }
+    };
+
+    socketService.onMessageNotification(handleMessageNotification);
+    socketService.onNewMessage(handleNewMessage);
 
     return () => {
-      socketService.removeListener('message_notification');
+      socketService.removeListener('message_notification', handleMessageNotification);
+      socketService.removeListener('new_message', handleNewMessage);
     };
   }, [user]);
 
@@ -47,6 +65,7 @@ export const useChatNotifications = () => {
     if (!user) return;
 
     try {
+      console.log('🔄 Loading unread count for user:', user.id);
       const rooms = await chatApiService.getChatRooms();
       let totalUnread = 0;
 
@@ -55,12 +74,13 @@ export const useChatNotifications = () => {
         totalUnread += userUnread;
       });
 
+      console.log('✅ Total unread messages:', totalUnread);
       setChatNotifications({
         unreadCount: totalUnread,
         hasUnreadMessages: totalUnread > 0
       });
     } catch (error) {
-      console.error('Error loading unread count:', error);
+      console.error('❌ Error loading unread count:', error);
     }
   };
 
@@ -71,9 +91,17 @@ export const useChatNotifications = () => {
     });
   };
 
+  const decrementUnreadCount = (count: number = 1) => {
+    setChatNotifications(prev => ({
+      unreadCount: Math.max(0, prev.unreadCount - count),
+      hasUnreadMessages: Math.max(0, prev.unreadCount - count) > 0
+    }));
+  };
+
   return {
     chatNotifications,
     markAllAsRead,
+    decrementUnreadCount,
     refreshUnreadCount: loadUnreadCount
   };
 };

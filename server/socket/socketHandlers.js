@@ -1,278 +1,226 @@
+
 const ChatMessage = require('../models/ChatMessage');
 const ChatRoom = require('../models/ChatRoom');
-const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
-// Helper function to generate room ID
-const generateRoomId = (userId1, userId2) => {
-  return [userId1, userId2].sort().join('-');
-};
+const connectedUsers = new Map(); // userId -> socketId mapping
+const userSockets = new Map(); // socketId -> user info mapping
 
 const handleSocketConnection = (io) => {
-  const connectedUsers = new Map(); // userId -> socketId
-
   io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('🔌 User connected:', socket.id);
 
-    // User joins with their ID
-    socket.on('join_user', (userId) => {
-      if (userId) {
+    // Handle user joining
+    socket.on('join_user', async (userId) => {
+      try {
+        console.log('👤 User joining:', userId, 'Socket:', socket.id);
+        
+        // Store user connection
         connectedUsers.set(userId, socket.id);
-        socket.userId = userId;
+        userSockets.set(socket.id, { userId });
+        
+        // Join user to their personal room
         socket.join(`user_${userId}`);
         
-        // Notify others that user is online
-        socket.broadcast.emit('user_online', { userId, socketId: socket.id });
-        console.log(`User ${userId} joined with socket ${socket.id}`);
-      }
-    });
-
-    // Join specific chat room
-    socket.on('join_room', async (data) => {
-      try {
-        const { roomId, userId } = data;
+        // Broadcast user online status
+        socket.broadcast.emit('user_online', { userId });
         
-        // Verify user is participant in this room
-        const room = await ChatRoom.findOne({
-          _id: roomId,
-          participants: userId
-        });
-        
-        if (room) {
-          socket.join(roomId);
-          console.log(`User ${userId} joined room ${roomId}`);
-        }
+        console.log('✅ User joined successfully:', userId);
       } catch (error) {
-        console.error('Error joining room:', error);
-        socket.emit('error', { message: 'Failed to join room' });
+        console.error('❌ Error joining user:', error);
       }
     });
 
-    // Send message
+    // Handle joining chat rooms
+    socket.on('join_room', async ({ roomId, userId }) => {
+      try {
+        console.log('🏠 Joining room:', roomId, 'User:', userId);
+        socket.join(roomId);
+        console.log('✅ Joined room successfully:', roomId);
+      } catch (error) {
+        console.error('❌ Error joining room:', error);
+      }
+    });
+
+    // Handle sending messages
     socket.on('send_message', async (data) => {
       try {
-        const { senderId, receiverId, content, type = 'text' } = data;
-
-        if (!receiverId || !content || !senderId) {
-          socket.emit('error', { message: 'Invalid message data' });
-          return;
-        }
-
-        // Verify sender
-        const sender = await User.findById(senderId);
-        const receiver = await User.findById(receiverId);
+        console.log('📤 Sending message:', data);
         
-        if (!sender || !receiver) {
-          socket.emit('error', { message: 'User not found' });
-          return;
-        }
-
-        // Find or create chat room
-        let room = await ChatRoom.findOne({
+        const { senderId, receiverId, content, type = 'text' } = data;
+        
+        // Create room ID
+        const roomId = [senderId, receiverId].sort().join('-');
+        
+        // Create or update chat room
+        let chatRoom = await ChatRoom.findOne({
           participants: { $all: [senderId, receiverId] }
-        });
-
-        if (!room) {
-          room = new ChatRoom({
+        }).populate('participants', 'name email role');
+        
+        if (!chatRoom) {
+          chatRoom = new ChatRoom({
             participants: [senderId, receiverId],
-            lastActivity: new Date(),
             unreadCount: new Map()
           });
-          await room.save();
         }
-
-        // Create message
+        
+        // Create new message
         const message = new ChatMessage({
           senderId,
           receiverId,
-          content: content.trim(),
+          content,
           type,
-          roomId: room._id
+          roomId,
+          isRead: false
         });
-
+        
         await message.save();
-
-        // Update room
-        room.lastMessage = message._id;
-        room.lastActivity = new Date();
+        
+        // Update room's last message and activity
+        chatRoom.lastMessage = message._id;
+        chatRoom.lastActivity = new Date();
         
         // Update unread count for receiver
-        const currentUnread = room.unreadCount.get(receiverId.toString()) || 0;
-        room.unreadCount.set(receiverId.toString(), currentUnread + 1);
+        const currentUnread = chatRoom.unreadCount.get(receiverId) || 0;
+        chatRoom.unreadCount.set(receiverId, currentUnread + 1);
         
-        await room.save();
-
-        // Populate message
-        await message.populate('senderId', 'name email role');
-        await message.populate('receiverId', 'name email role');
-
-        // Send to both participants in the room AND directly to each user
-        io.to(room._id.toString()).emit('new_message', message);
+        await chatRoom.save();
         
-        // Also send directly to both sender and receiver socket IDs for reliability
-        const senderSocketId = connectedUsers.get(senderId.toString());
-        const receiverSocketId = connectedUsers.get(receiverId.toString());
+        // Populate message with user details
+        await message.populate([
+          { path: 'senderId', select: 'name email role' },
+          { path: 'receiverId', select: 'name email role' }
+        ]);
         
-        if (senderSocketId) {
-          io.to(senderSocketId).emit('new_message', message);
-        }
+        console.log('✅ Message saved:', message._id);
+        
+        // Emit to both users
+        const senderSocketId = connectedUsers.get(senderId);
+        const receiverSocketId = connectedUsers.get(receiverId);
+        
+        // Emit new message to both participants
+        io.to(roomId).emit('new_message', {
+          message,
+          roomId
+        });
+        
+        // Send notification to receiver if they're online
         if (receiverSocketId) {
-          io.to(receiverSocketId).emit('new_message', message);
           io.to(receiverSocketId).emit('message_notification', {
             message,
-            roomId: room._id,
-            senderName: sender.name
+            senderName: message.senderId.name,
+            roomId
           });
         }
-
-        console.log(`Message sent from ${senderId} to ${receiverId}`);
+        
+        console.log('📨 Message broadcasted to room:', roomId);
+        
       } catch (error) {
-        console.error('Error sending message:', error);
-        socket.emit('error', { message: 'Failed to send message' });
+        console.error('❌ Error sending message:', error);
+        socket.emit('message_error', { error: error.message });
       }
     });
 
-    // Edit message
-    socket.on('edit_message', async (data) => {
+    // Handle message read status
+    socket.on('mark_read', async ({ messageId, userId }) => {
       try {
-        const { messageId, content, userId } = data;
-
-        const message = await ChatMessage.findOne({
-          _id: messageId,
-          senderId: userId
-        });
-
-        if (!message) {
-          socket.emit('error', { message: 'Message not found or access denied' });
-          return;
-        }
-
-        message.content = content.trim();
-        message.isEdited = true;
-        message.editedAt = new Date();
-
-        await message.save();
-        await message.populate('senderId', 'name email role');
-        await message.populate('receiverId', 'name email role');
-
-        // Broadcast to room
-        io.to(message.roomId.toString()).emit('message_edited', message);
-      } catch (error) {
-        console.error('Error editing message:', error);
-        socket.emit('error', { message: 'Failed to edit message' });
-      }
-    });
-
-    // Delete message
-    socket.on('delete_message', async (data) => {
-      try {
-        const { messageId, userId } = data;
-
-        const message = await ChatMessage.findOne({
-          _id: messageId,
-          senderId: userId
-        });
-
-        if (!message) {
-          socket.emit('error', { message: 'Message not found or access denied' });
-          return;
-        }
-
-        const roomId = message.roomId;
-        await ChatMessage.findByIdAndDelete(messageId);
-
-        // Broadcast to room
-        io.to(roomId.toString()).emit('message_deleted', { messageId });
-      } catch (error) {
-        console.error('Error deleting message:', error);
-        socket.emit('error', { message: 'Failed to delete message' });
-      }
-    });
-
-    // Mark message as read
-    socket.on('mark_read', async (data) => {
-      try {
-        const { messageId, userId } = data;
-
-        const message = await ChatMessage.findOne({
-          _id: messageId,
-          receiverId: userId
-        });
-
-        if (message && !message.isRead) {
+        const message = await ChatMessage.findById(messageId);
+        if (message && message.receiverId.toString() === userId) {
           message.isRead = true;
           await message.save();
-
-          // Update room unread count
-          const room = await ChatRoom.findById(message.roomId);
-          if (room) {
-            const currentUnread = room.unreadCount.get(userId.toString()) || 0;
-            room.unreadCount.set(userId.toString(), Math.max(0, currentUnread - 1));
-            await room.save();
-          }
-
-          // Notify sender that message was read
-          const senderSocketId = connectedUsers.get(message.senderId.toString());
-          if (senderSocketId) {
-            io.to(senderSocketId).emit('message_read', { messageId });
-          }
-        }
-      } catch (error) {
-        console.error('Error marking message as read:', error);
-      }
-    });
-
-    // Handle calling features
-    socket.on('initiate_call', async (data) => {
-      try {
-        const { callerId, receiverId, callType } = data;
-        
-        const receiverSocketId = connectedUsers.get(receiverId);
-        if (receiverSocketId) {
-          const caller = await User.findById(callerId);
-          io.to(receiverSocketId).emit('incoming_call', {
-            callerId,
-            callerName: caller.name,
-            callType,
-            socketId: socket.id
+          
+          // Update unread count in room
+          const roomId = message.roomId;
+          const chatRoom = await ChatRoom.findOne({
+            participants: { $all: [message.senderId, message.receiverId] }
           });
-        } else {
-          socket.emit('call_failed', { reason: 'User is offline' });
+          
+          if (chatRoom) {
+            const currentUnread = Math.max(0, (chatRoom.unreadCount.get(userId) || 1) - 1);
+            chatRoom.unreadCount.set(userId, currentUnread);
+            await chatRoom.save();
+          }
+          
+          io.to(roomId).emit('message_read', { messageId });
         }
       } catch (error) {
-        console.error('Error initiating call:', error);
-        socket.emit('call_failed', { reason: 'Failed to initiate call' });
+        console.error('❌ Error marking message as read:', error);
       }
     });
 
-    socket.on('call_response', (data) => {
-      const { targetSocketId, accepted, callData } = data;
-      io.to(targetSocketId).emit('call_response', { accepted, callData });
-    });
-
-    socket.on('call_signal', (data) => {
-      const { targetSocketId, signal } = data;
-      io.to(targetSocketId).emit('call_signal', { signal, from: socket.id });
-    });
-
-    socket.on('end_call', (data) => {
-      const { targetSocketId } = data;
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call_ended');
+    // Handle call initiation
+    socket.on('initiate_call', ({ callerId, receiverId, callType }) => {
+      console.log('📞 Call initiated:', { callerId, receiverId, callType });
+      
+      const receiverSocketId = connectedUsers.get(receiverId);
+      const callerSocketId = connectedUsers.get(callerId);
+      
+      if (receiverSocketId) {
+        // Send call notification to receiver
+        io.to(receiverSocketId).emit('incoming_call', {
+          callerId,
+          receiverId,
+          callType,
+          callerSocketId,
+          receiverSocketId
+        });
+        
+        console.log('📞 Call notification sent to receiver');
+      } else {
+        // Receiver is offline
+        io.to(callerSocketId).emit('call_failed', {
+          reason: 'User is offline'
+        });
       }
+    });
+
+    // Handle call response (accept/decline)
+    socket.on('call_response', ({ targetSocketId, accepted, callData }) => {
+      console.log('📞 Call response:', { targetSocketId, accepted });
+      
+      if (accepted) {
+        // Both users accept the call
+        io.to(targetSocketId).emit('call_accepted', callData);
+        socket.emit('call_accepted', callData);
+      } else {
+        // Call declined
+        io.to(targetSocketId).emit('call_declined');
+      }
+    });
+
+    // Handle call signals for WebRTC
+    socket.on('call_signal', ({ targetSocketId, signal }) => {
+      io.to(targetSocketId).emit('call_signal', {
+        signal,
+        socketId: socket.id
+      });
+    });
+
+    // Handle call end
+    socket.on('end_call', ({ targetSocketId }) => {
+      io.to(targetSocketId).emit('call_ended');
+      socket.emit('call_ended');
     });
 
     // Handle disconnect
     socket.on('disconnect', () => {
-      if (socket.userId) {
-        connectedUsers.delete(socket.userId);
-        socket.broadcast.emit('user_offline', { userId: socket.userId });
-        console.log(`User ${socket.userId} disconnected`);
+      console.log('🔌 User disconnected:', socket.id);
+      
+      const userInfo = userSockets.get(socket.id);
+      if (userInfo) {
+        const { userId } = userInfo;
+        
+        // Remove from connected users
+        connectedUsers.delete(userId);
+        userSockets.delete(socket.id);
+        
+        // Broadcast user offline status
+        socket.broadcast.emit('user_offline', { userId });
+        
+        console.log('👤 User went offline:', userId);
       }
-      console.log('User disconnected:', socket.id);
     });
   });
-
-  return { connectedUsers };
 };
 
 module.exports = { handleSocketConnection };
