@@ -3,6 +3,7 @@ const router = express.Router();
 const ChatMessage = require('../models/ChatMessage');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
+const Doctor = require('../models/Doctor');
 const { authenticate } = require('../middleware/auth');
 
 // Helper function to generate room ID
@@ -198,11 +199,17 @@ router.post('/rooms/create', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Participant ID is required' });
     }
 
-    // Verify participant exists
-    const participant = await User.findById(participantId);
+    // Verify participant exists (check both User and Doctor collections)
+    let participant = await User.findById(participantId);
     if (!participant) {
+      participant = await Doctor.findById(participantId);
+    }
+    if (!participant) {
+      console.log('❌ Participant not found in User or Doctor collections:', participantId);
       return res.status(404).json({ error: 'Participant not found' });
     }
+    
+    console.log('✅ Participant found:', participant.name, 'Type:', participant.role || 'Doctor');
 
     // Find existing room or create new one
     let room = await ChatRoom.findOne({
