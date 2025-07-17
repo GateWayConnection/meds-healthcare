@@ -61,20 +61,13 @@ const Chat = () => {
   const initializeChat = async () => {
     if (!user || !doctorId) return;
 
-    // Check if doctor exists
-    if (!doctor) {
-      toast.error('Doctor not found');
-      navigate('/find-doctor');
-      return;
-    }
-
     try {
       setLoading(true);
       
       // Connect to socket
       await socketService.connect(user.id);
       
-      // Create or get chat room with the doctor
+      // Create or get chat room
       const chatRoom = await chatApiService.createChatRoom(doctorId);
       setRoom(chatRoom);
       
