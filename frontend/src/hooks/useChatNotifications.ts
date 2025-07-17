@@ -19,6 +19,7 @@ export const useChatNotifications = () => {
   useEffect(() => {
     if (!user) return;
 
+    // Initialize socket connection
     const initializeChat = async () => {
       try {
         console.log('🔔 Initializing chat notifications for:', user.id);
@@ -34,13 +35,10 @@ export const useChatNotifications = () => {
     // Listen for new messages to update unread count
     const handleMessageNotification = (data: any) => {
       console.log('🔔 New message notification:', data);
-      // Only increment if the message is not from the current user
-      if (data.message.senderId._id !== user.id) {
-        setChatNotifications(prev => ({
-          unreadCount: prev.unreadCount + 1,
-          hasUnreadMessages: true
-        }));
-      }
+      setChatNotifications(prev => ({
+        unreadCount: prev.unreadCount + 1,
+        hasUnreadMessages: true
+      }));
     };
 
     const handleNewMessage = (data: any) => {
@@ -54,22 +52,12 @@ export const useChatNotifications = () => {
       }
     };
 
-    const handleMessageRead = (data: any) => {
-      console.log('🔔 Message marked as read:', data);
-      setChatNotifications(prev => ({
-        unreadCount: Math.max(0, prev.unreadCount - 1),
-        hasUnreadMessages: Math.max(0, prev.unreadCount - 1) > 0
-      }));
-    };
-
     socketService.onMessageNotification(handleMessageNotification);
     socketService.onNewMessage(handleNewMessage);
-    socketService.onMessageRead(handleMessageRead);
 
     return () => {
       socketService.removeListener('message_notification', handleMessageNotification);
       socketService.removeListener('new_message', handleNewMessage);
-      socketService.removeListener('message_read', handleMessageRead);
     };
   }, [user]);
 
