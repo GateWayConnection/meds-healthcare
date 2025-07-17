@@ -156,6 +156,9 @@ class ChatApiService {
   async createChatRoom(participantId: string): Promise<ChatRoom> {
     try {
       console.log('🔄 Creating chat room for participant:', participantId);
+      console.log('🔍 Participant ID type:', typeof participantId);
+      console.log('🔍 Participant ID length:', participantId?.length);
+      console.log('🔍 Participant ID valid:', participantId && participantId.length > 0);
       console.log('🌐 Using baseURL:', apiService.baseURL);
       console.log('🔑 Auth token:', localStorage.getItem('token') ? 'Present' : 'Missing');
       
