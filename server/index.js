@@ -43,6 +43,17 @@ app.use('/api/stats', require('./routes/stats'));
 app.use('/api/testimonials', require('./routes/testimonials'));
 app.use('/api/chat', require('./routes/chat'));
 
+// Debug: Log all registered routes
+console.log('🔍 Chat routes registered at /api/chat');
+console.log('📋 Available chat endpoints:');
+console.log('  GET  /api/chat/rooms');
+console.log('  POST /api/chat/rooms/create');
+console.log('  GET  /api/chat/messages/:roomId');
+console.log('  POST /api/chat/messages');
+console.log('  PUT  /api/chat/messages/:id');
+console.log('  DELETE /api/chat/messages/:id');
+console.log('  POST /api/chat/messages/:id/read');
+
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({ message: 'Server is running!' });

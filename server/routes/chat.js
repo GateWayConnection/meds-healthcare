@@ -10,6 +10,11 @@ const generateRoomId = (userId1, userId2) => {
   return [userId1, userId2].sort().join('-');
 };
 
+// Debug test route
+router.get('/test', (req, res) => {
+  res.json({ message: 'Chat routes are working!', timestamp: new Date().toISOString() });
+});
+
 // GET /api/chat/rooms - Get user's chat rooms
 router.get('/rooms', authenticate, async (req, res) => {
   try {
@@ -180,6 +185,10 @@ router.delete('/messages/:id', authenticate, async (req, res) => {
 // POST /api/chat/rooms/create - Create or get existing room
 router.post('/rooms/create', authenticate, async (req, res) => {
   try {
+    console.log('🔄 Chat room creation request received');
+    console.log('📝 Request body:', req.body);
+    console.log('👤 User ID:', req.user?.id);
+    
     const { participantId } = req.body;
     const userId = req.user.id;
 
@@ -208,10 +217,15 @@ router.post('/rooms/create', authenticate, async (req, res) => {
       await room.populate('participants', 'name email role');
     }
 
+    console.log('✅ Room created/found successfully:', room._id);
     res.json(room);
   } catch (error) {
-    console.error('Error creating/getting room:', error);
-    res.status(500).json({ error: 'Failed to create/get room' });
+    console.error('❌ Error creating/getting room:', error);
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to create/get room',
+      details: error.message 
+    });
   }
 });
 

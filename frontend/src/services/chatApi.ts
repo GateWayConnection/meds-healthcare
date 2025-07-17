@@ -155,6 +155,9 @@ class ChatApiService {
   // Create or get existing chat room
   async createChatRoom(participantId: string): Promise<ChatRoom> {
     try {
+      console.log('🔄 Creating chat room for participant:', participantId);
+      console.log('🌐 Using baseURL:', apiService.baseURL);
+      
       const response = await fetch(`${apiService.baseURL}/chat/rooms/create`, {
         method: 'POST',
         headers: {
@@ -164,13 +167,20 @@ class ChatApiService {
         body: JSON.stringify({ participantId })
       });
 
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response OK:', response.ok);
+
       if (!response.ok) {
-        throw new Error('Failed to create chat room');
+        const errorText = await response.text();
+        console.error('❌ Server response:', errorText);
+        throw new Error(`Failed to create chat room: ${response.status} ${errorText}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log('✅ Chat room created successfully:', result);
+      return result;
     } catch (error) {
-      console.error('Error creating chat room:', error);
+      console.error('❌ Error creating chat room:', error);
       throw error;
     }
   }
