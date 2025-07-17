@@ -105,12 +105,18 @@ const handleSocketConnection = (io) => {
         await message.populate('senderId', 'name email role');
         await message.populate('receiverId', 'name email role');
 
-        // Send to both participants
+        // Send to both participants in the room AND directly to each user
         io.to(room._id.toString()).emit('new_message', message);
         
-        // Send notification to receiver if online
-        const receiverSocketId = connectedUsers.get(receiverId);
+        // Also send directly to both sender and receiver socket IDs for reliability
+        const senderSocketId = connectedUsers.get(senderId.toString());
+        const receiverSocketId = connectedUsers.get(receiverId.toString());
+        
+        if (senderSocketId) {
+          io.to(senderSocketId).emit('new_message', message);
+        }
         if (receiverSocketId) {
+          io.to(receiverSocketId).emit('new_message', message);
           io.to(receiverSocketId).emit('message_notification', {
             message,
             roomId: room._id,

@@ -78,6 +78,14 @@ const Chat = () => {
       const roomMessages = await chatApiService.getRoomMessages(chatRoom._id);
       setMessages(roomMessages);
       
+      // Mark messages as read when entering chat
+      const unreadMessages = roomMessages.filter(msg => 
+        msg.receiverId._id === user.id && !msg.isRead
+      );
+      for (const message of unreadMessages) {
+        socketService.markAsRead({ messageId: message._id, userId: user.id });
+      }
+      
       // Set up socket listeners
       setupSocketListeners();
       
@@ -117,6 +125,27 @@ const Chat = () => {
     socketService.onUserOffline(({ userId }: { userId: string }) => {
       if (userId === doctorId) {
         setIsOnline(false);
+      }
+    });
+
+    // Listen for incoming calls
+    socketService.onIncomingCall((callData: any) => {
+      const confirmCall = window.confirm(
+        `Incoming ${callData.callType} call from Dr. ${callData.callerName}. Accept?`
+      );
+      
+      if (confirmCall) {
+        socketService.respondToCall({
+          targetSocketId: callData.socketId,
+          accepted: true,
+          callData: { acceptedBy: user?.name }
+        });
+        toast.success('Call accepted');
+      } else {
+        socketService.respondToCall({
+          targetSocketId: callData.socketId,
+          accepted: false
+        });
       }
     });
   };
@@ -183,7 +212,22 @@ const Chat = () => {
   };
 
   const handleStartCall = (type: 'audio' | 'video') => {
-    navigate(`/call?doctor=${doctorId}&type=${type}`);
+    if (!user || !doctorId) return;
+    
+    // Check if doctor is online first
+    if (!isOnline) {
+      toast.error('Doctor is currently offline');
+      return;
+    }
+    
+    // Initiate call via socket
+    socketService.initiateCall({
+      callerId: user.id,
+      receiverId: doctorId,
+      callType: type
+    });
+    
+    toast.success(`Calling ${doctor?.name}...`);
   };
 
   if (loading || !doctor) {

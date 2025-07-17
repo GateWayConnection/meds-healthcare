@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { MessageCircle, Send, Video, Phone, Search, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { chatApiService, ChatRoom, ChatMessage } from '../../services/chatApi';
+import { socketService } from '../../services/socketService';
 import { toast } from 'sonner';
 
 const DoctorChat = () => {
@@ -21,6 +22,15 @@ const DoctorChat = () => {
 
   useEffect(() => {
     loadChatRooms();
+    setupSocketListeners();
+    
+    return () => {
+      // Cleanup socket listeners
+      socketService.removeListener('new_message');
+      socketService.removeListener('message_edited');
+      socketService.removeListener('message_deleted');
+      socketService.removeListener('incoming_call');
+    };
   }, []);
 
   useEffect(() => {
@@ -46,10 +56,73 @@ const DoctorChat = () => {
     try {
       const roomMessages = await chatApiService.getRoomMessages(roomId);
       setMessages(roomMessages);
+      
+      // Join the room for real-time updates
+      socketService.joinRoom(roomId, user.id);
+      
+      // Mark messages as read when doctor enters chat
+      const unreadMessages = roomMessages.filter(msg => 
+        msg.receiverId._id === user.id && !msg.isRead
+      );
+      for (const message of unreadMessages) {
+        socketService.markAsRead({ messageId: message._id, userId: user.id });
+      }
     } catch (error) {
       console.error('Error loading messages:', error);
       toast.error('Failed to load messages');
     }
+  };
+
+  const handleInitiateCall = (type: 'audio' | 'video') => {
+    if (!selectedRoom || !user) return;
+    
+    const otherParticipant = selectedRoom.participants.find(p => p._id !== user.id);
+    if (!otherParticipant) return;
+    
+    // Initiate call via socket
+    socketService.initiateCall({
+      callerId: user.id,
+      receiverId: otherParticipant._id,
+      callType: type
+    });
+    
+    toast.success(`Calling ${otherParticipant.name}...`);
+  };
+
+  const setupSocketListeners = () => {
+    // Listen for new messages
+    socketService.onNewMessage((message: ChatMessage) => {
+      setMessages(prev => [...prev, message]);
+      
+      // Update chat rooms list with new message
+      setChatRooms(prev => prev.map(room => 
+        room._id === message.roomId 
+          ? { ...room, lastMessage: message, lastActivity: new Date().toISOString() }
+          : room
+      ));
+    });
+
+    // Listen for incoming calls
+    socketService.onIncomingCall((callData: any) => {
+      const confirmCall = window.confirm(
+        `Incoming ${callData.callType} call from ${callData.callerName}. Accept?`
+      );
+      
+      if (confirmCall) {
+        socketService.respondToCall({
+          targetSocketId: callData.socketId,
+          accepted: true,
+          callData: { acceptedBy: user?.name }
+        });
+        // Redirect to call page or handle call UI
+        toast.success('Call accepted');
+      } else {
+        socketService.respondToCall({
+          targetSocketId: callData.socketId,
+          accepted: false
+        });
+      }
+    });
   };
 
   const sendMessage = async () => {
@@ -60,24 +133,16 @@ const DoctorChat = () => {
 
     try {
       setSending(true);
-      const message = await chatApiService.sendMessage({
+      // Send via socket for real-time delivery
+      socketService.sendMessage({
+        senderId: user.id,
         receiverId: otherParticipant._id,
         content: newMessage.trim(),
         type: 'text'
       });
 
-      setMessages(prev => [...prev, message]);
       setNewMessage('');
       
-      // Update room's last message
-      setChatRooms(prev => 
-        prev.map(room => 
-          room._id === selectedRoom._id 
-            ? { ...room, lastMessage: message, lastActivity: new Date().toISOString() }
-            : room
-        )
-      );
-
       toast.success('Message sent successfully');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -220,11 +285,21 @@ const DoctorChat = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-green-600 border-green-600 hover:bg-green-50"
+                          onClick={() => handleInitiateCall('audio')}
+                        >
                           <Phone className="w-4 h-4 mr-1" />
                           Audio Call
                         </Button>
-                        <Button size="sm" variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                          onClick={() => handleInitiateCall('video')}
+                        >
                           <Video className="w-4 h-4 mr-1" />
                           Video Call
                         </Button>
