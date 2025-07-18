@@ -2,249 +2,197 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { socketService } from '../../services/socketService';
-import { chatApiService } from '../../services/chatApi';
+import { chatApiService, ChatMessage, ChatRoom } from '../../services/chatApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Avatar, AvatarFallback } from '../../components/ui/avatar';
-import { Card, CardContent } from '../../components/ui/card';
-import { 
-  Phone, 
-  Video, 
-  Send, 
-  PhoneCall, 
-  VideoIcon,
-  Check,
-  X
-} from 'lucide-react';
-import { toast } from '../../hooks/use-toast';
+import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Send, Phone, Video, MessageCircle, Users, ArrowLeft } from 'lucide-react';
+import { useToast } from '../../hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
-interface Message {
-  _id: string;
-  senderId: {
-    _id: string;
-    name: string;
-  };
-  receiverId: {
-    _id: string;
-    name: string;
-  };
-  content: string;
-  createdAt: string;
-  isRead: boolean;
-}
-
-interface Patient {
+interface User {
   _id: string;
   name: string;
   email: string;
+  role: string;
 }
 
 interface CallState {
-  isActive: boolean;
+  isInCall: boolean;
   isIncoming: boolean;
   isOutgoing: boolean;
+  callType: 'audio' | 'video' | null;
   callerName: string;
   callerId: string;
-  callType: 'audio' | 'video';
-  status: 'calling' | 'connected' | 'ended' | 'declined';
-  targetSocketId?: string;
+  receiverId: string;
 }
 
-const DoctorChat: React.FC = () => {
+const DoctorChat = () => {
   const { user } = useAuth();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
   const [callState, setCallState] = useState<CallState>({
-    isActive: false,
+    isInCall: false,
     isIncoming: false,
     isOutgoing: false,
+    callType: null,
     callerName: '',
     callerId: '',
-    callType: 'audio',
-    status: 'ended'
+    receiverId: ''
   });
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Initialize socket connection and load data
   useEffect(() => {
-    loadPatients();
-    setupSocketListeners();
+    if (!user) return;
+
+    const initializeChat = async () => {
+      try {
+        console.log('🔄 Doctor initializing chat for user:', user.id);
+        
+        // Connect to socket
+        await socketService.connect(user.id);
+        console.log('✅ Doctor socket connected');
+        
+        // Load chat rooms
+        await loadChatRooms();
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('❌ Error initializing doctor chat:', error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize chat system",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+      }
+    };
+
+    initializeChat();
+
+    // Socket event listeners
+    socketService.onNewMessage(handleNewMessage);
+    socketService.onMessageRead(handleMessageRead);
+    socketService.onIncomingCall(handleIncomingCall);
+    socketService.onCallResponse(handleCallResponse);
+    socketService.onCallEnded(handleCallEnded);
 
     return () => {
       socketService.removeListener('new_message');
+      socketService.removeListener('message_read');
       socketService.removeListener('incoming_call');
       socketService.removeListener('call_response');
       socketService.removeListener('call_ended');
     };
   }, [user]);
 
-  useEffect(() => {
-    if (selectedPatient) {
-      loadMessages();
-    }
-  }, [selectedPatient]);
-
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const loadPatients = async () => {
-    if (!user) return;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
+  const loadChatRooms = async () => {
     try {
-      setIsLoading(true);
+      console.log('📂 Doctor loading chat rooms...');
       const rooms = await chatApiService.getChatRooms();
-      
-      const patientList = rooms.map(room => {
-        const patient = room.participants.find(p => p.role === 'patient');
-        return patient;
-      }).filter(Boolean);
-
-      setPatients(patientList);
-      
-      if (patientList.length > 0 && !selectedPatient) {
-        setSelectedPatient(patientList[0]);
-      }
+      console.log('📂 Doctor loaded rooms:', rooms.length);
+      setChatRooms(rooms);
     } catch (error) {
-      console.error('Error loading patients:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load patients",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+      console.error('❌ Error loading chat rooms:', error);
     }
   };
 
-  const loadMessages = async () => {
-    if (!selectedPatient || !user) return;
-
+  const loadMessages = async (roomId: string) => {
     try {
-      const rooms = await chatApiService.getChatRooms();
-      const room = rooms.find(r => 
-        r.participants.some(p => p._id === selectedPatient._id)
+      console.log('💬 Doctor loading messages for room:', roomId);
+      const roomMessages = await chatApiService.getRoomMessages(roomId);
+      console.log('💬 Doctor loaded messages:', roomMessages.length);
+      setMessages(roomMessages);
+      
+      // Mark messages as read
+      const unreadMessages = roomMessages.filter(msg => 
+        !msg.isRead && msg.receiverId._id === user?.id
       );
-
-      if (room) {
-        const roomMessages = await chatApiService.getMessages(room._id);
-        setMessages(roomMessages);
-
-        // Mark messages as read
-        const unreadMessages = roomMessages.filter(msg => 
-          msg.senderId._id !== user.id && !msg.isRead
-        );
-        
-        for (const msg of unreadMessages) {
-          socketService.markAsRead({ messageId: msg._id, userId: user.id });
+      
+      for (const msg of unreadMessages) {
+        try {
+          await chatApiService.markMessageAsRead(msg._id);
+          socketService.markAsRead({ messageId: msg._id, userId: user!.id });
+        } catch (error) {
+          console.error('❌ Error marking message as read:', error);
         }
       }
     } catch (error) {
-      console.error('Error loading messages:', error);
+      console.error('❌ Error loading messages:', error);
     }
   };
 
-  const setupSocketListeners = () => {
-    if (!user) return;
-
-    socketService.connect(user.id);
-
-    socketService.onNewMessage((data: any) => {
-      console.log('New message received:', data);
-      setMessages(prev => [...prev, data.message]);
-      
-      // Mark as read if chat is open with this patient
-      if (data.message.senderId._id !== user.id && 
-          selectedPatient && 
-          data.message.senderId._id === selectedPatient._id) {
-        socketService.markAsRead({ 
-          messageId: data.message._id, 
-          userId: user.id 
-        });
-      }
-    });
-
-    socketService.onIncomingCall((callData: any) => {
-      console.log('Incoming call:', callData);
-      setCallState({
-        isActive: true,
-        isIncoming: true,
-        isOutgoing: false,
-        callerName: callData.callerName,
-        callerId: callData.callerId,
-        callType: callData.callType,
-        status: 'calling',
-        targetSocketId: callData.callerSocketId
-      });
-
-      // Show incoming call popup with sound
-      toast({
-        title: "Incoming Call",
-        description: `${callData.callerName} is calling you`,
-        duration: 10000,
-      });
-    });
-
-    socketService.onCallResponse((data: any) => {
-      if (data.accepted) {
-        setCallState(prev => ({ ...prev, status: 'connected' }));
-        handleCallAccepted(data);
-      } else {
-        setCallState(prev => ({ ...prev, status: 'declined' }));
-        setTimeout(() => {
-          setCallState({
-            isActive: false,
-            isIncoming: false,
-            isOutgoing: false,
-            callerName: '',
-            callerId: '',
-            callType: 'audio',
-            status: 'ended'
-          });
-        }, 2000);
-      }
-    });
-
-    socketService.onCallEnded(() => {
-      setCallState({
-        isActive: false,
-        isIncoming: false,
-        isOutgoing: false,
-        callerName: '',
-        callerId: '',
-        callType: 'audio',
-        status: 'ended'
-      });
-      toast({
-        title: "Call Ended",
-        description: "The call has ended"
-      });
-    });
+  const handleRoomSelect = async (room: ChatRoom) => {
+    console.log('🏠 Doctor selecting room:', room._id);
+    setSelectedRoom(room);
+    await loadMessages(room._id);
+    
+    // Join the socket room
+    if (user) {
+      socketService.joinRoom(room._id, user.id);
+    }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !user || !selectedPatient) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedRoom || !user) return;
 
     try {
-      const messageData = {
-        senderId: user.id,
-        receiverId: selectedPatient._id,
+      console.log('📤 Doctor sending message:', newMessage);
+      
+      const otherParticipant = selectedRoom.participants.find(p => p._id !== user.id);
+      if (!otherParticipant) return;
+
+      // Send via API first
+      const savedMessage = await chatApiService.sendMessage({
+        receiverId: otherParticipant._id,
         content: newMessage.trim(),
         type: 'text'
+      });
+
+      // Send via socket for real-time updates
+      socketService.sendMessage({
+        senderId: user.id,
+        receiverId: otherParticipant._id,
+        content: newMessage.trim(),
+        type: 'text'
+      });
+
+      // Add message to local state immediately for better UX
+      const newMsg: ChatMessage = {
+        ...savedMessage,
+        senderId: {
+          _id: user.id,
+          name: user.name || user.email,
+          email: user.email,
+          role: user.role
+        },
+        receiverId: otherParticipant
       };
 
-      socketService.sendMessage(messageData);
+      setMessages(prev => [...prev, newMsg]);
       setNewMessage('');
+      
+      console.log('✅ Doctor message sent successfully');
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
       toast({
         title: "Error",
         description: "Failed to send message",
@@ -253,277 +201,396 @@ const DoctorChat: React.FC = () => {
     }
   };
 
-  const acceptCall = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: callState.callType === 'video',
-        audio: true
-      });
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      socketService.respondToCall({
-        targetSocketId: callState.targetSocketId!,
-        accepted: true,
-        callData: { stream }
-      });
-
-      setCallState(prev => ({ ...prev, status: 'connected' }));
-      
-      toast({
-        title: "Call Accepted",
-        description: "You are now connected"
-      });
-    } catch (error) {
-      console.error('Error accessing media:', error);
-      toast({
-        title: "Media Error",
-        description: "Could not access camera/microphone",
-        variant: "destructive"
+  const handleNewMessage = (data: { message: ChatMessage; roomId: string }) => {
+    console.log('📨 Doctor received new message:', data);
+    
+    if (selectedRoom && data.roomId === selectedRoom._id) {
+      setMessages(prev => {
+        // Check if message already exists to avoid duplicates
+        const exists = prev.some(msg => msg._id === data.message._id);
+        if (exists) return prev;
+        
+        return [...prev, data.message];
       });
     }
+    
+    // Refresh chat rooms to update last message
+    loadChatRooms();
+  };
+
+  const handleMessageRead = (data: { messageId: string }) => {
+    setMessages(prev => 
+      prev.map(msg => 
+        msg._id === data.messageId 
+          ? { ...msg, isRead: true }
+          : msg
+      )
+    );
+  };
+
+  const handleIncomingCall = (callData: any) => {
+    console.log('📞 Doctor incoming call:', callData);
+    
+    setCallState({
+      isInCall: false,
+      isIncoming: true,
+      isOutgoing: false,
+      callType: callData.callType,
+      callerName: callData.callerName || 'Unknown',
+      callerId: callData.callerId,
+      receiverId: user?.id || ''
+    });
+
+    toast({
+      title: `Incoming ${callData.callType} call`,
+      description: `${callData.callerName || 'A patient'} is calling you`,
+      duration: 10000
+    });
+  };
+
+  const handleCallResponse = (data: any) => {
+    if (data.accepted) {
+      setCallState(prev => ({
+        ...prev,
+        isInCall: true,
+        isIncoming: false,
+        isOutgoing: false
+      }));
+      
+      toast({
+        title: "Call Connected",
+        description: "You are now connected to the call"
+      });
+    } else {
+      setCallState({
+        isInCall: false,
+        isIncoming: false,
+        isOutgoing: false,
+        callType: null,
+        callerName: '',
+        callerId: '',
+        receiverId: ''
+      });
+      
+      toast({
+        title: "Call Declined",
+        description: "The call was declined"
+      });
+    }
+  };
+
+  const handleCallEnded = () => {
+    setCallState({
+      isInCall: false,
+      isIncoming: false,
+      isOutgoing: false,
+      callType: null,
+      callerName: '',
+      callerId: '',
+      receiverId: ''
+    });
+    
+    toast({
+      title: "Call Ended",
+      description: "The call has been ended"
+    });
+  };
+
+  const initiateCall = (callType: 'audio' | 'video') => {
+    if (!selectedRoom || !user) return;
+    
+    const otherParticipant = selectedRoom.participants.find(p => p._id !== user.id);
+    if (!otherParticipant) return;
+
+    console.log('📞 Doctor initiating call:', callType);
+    
+    setCallState({
+      isInCall: false,
+      isIncoming: false,
+      isOutgoing: true,
+      callType,
+      callerName: otherParticipant.name,
+      callerId: user.id,
+      receiverId: otherParticipant._id
+    });
+
+    socketService.initiateCall({
+      callerId: user.id,
+      receiverId: otherParticipant._id,
+      callType
+    });
+
+    toast({
+      title: "Calling...",
+      description: `Calling ${otherParticipant.name}`
+    });
+  };
+
+  const acceptCall = () => {
+    socketService.respondToCall({
+      targetSocketId: callState.callerId,
+      accepted: true,
+      callData: callState
+    });
   };
 
   const declineCall = () => {
     socketService.respondToCall({
-      targetSocketId: callState.targetSocketId!,
+      targetSocketId: callState.callerId,
       accepted: false
     });
-
+    
     setCallState({
-      isActive: false,
+      isInCall: false,
       isIncoming: false,
       isOutgoing: false,
+      callType: null,
       callerName: '',
       callerId: '',
-      callType: 'audio',
-      status: 'ended'
+      receiverId: ''
     });
   };
 
   const endCall = () => {
-    if (localVideoRef.current?.srcObject) {
-      const stream = localVideoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
-
-    if (callState.targetSocketId) {
-      socketService.endCall({ targetSocketId: callState.targetSocketId });
-    }
+    const targetId = callState.isOutgoing ? callState.receiverId : callState.callerId;
+    socketService.endCall({ targetSocketId: targetId });
     
     setCallState({
-      isActive: false,
+      isInCall: false,
       isIncoming: false,
       isOutgoing: false,
+      callType: null,
       callerName: '',
       callerId: '',
-      callType: 'audio',
-      status: 'ended'
+      receiverId: ''
     });
-  };
-
-  const handleCallAccepted = async (callData: any) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: callState.callType === 'video',
-        audio: true
-      });
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-    } catch (error) {
-      console.error('Error accessing media:', error);
-    }
-  };
-
-  const getMessageAlignment = (message: Message) => {
-    return message.senderId._id === user?.id ? 'justify-end' : 'justify-start';
-  };
-
-  const getMessageStyle = (message: Message) => {
-    const isSent = message.senderId._id === user?.id;
-    return isSent 
-      ? 'bg-blue-500 text-white ml-12' 
-      : 'bg-gray-200 text-gray-800 mr-12';
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading chat...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading chat...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen">
-      {/* Incoming Call Popup */}
-      {callState.isIncoming && callState.status === 'calling' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="flex h-screen bg-gray-50">
+      {/* Incoming Call Modal */}
+      {callState.isIncoming && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-96">
-            <CardContent className="p-6 text-center">
-              <div className="mb-4">
-                {callState.callType === 'video' ? (
-                  <VideoIcon className="h-16 w-16 mx-auto text-green-500" />
-                ) : (
-                  <PhoneCall className="h-16 w-16 mx-auto text-green-500 animate-pulse" />
-                )}
-              </div>
-              <h3 className="text-xl font-semibold mb-2">
-                Incoming {callState.callType} call
-              </h3>
-              <p className="text-gray-600 mb-6">{callState.callerName}</p>
-              <div className="flex space-x-4 justify-center">
-                <Button
-                  onClick={acceptCall}
-                  className="bg-green-500 hover:bg-green-600"
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Accept
-                </Button>
-                <Button
-                  onClick={declineCall}
-                  variant="destructive"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Decline
-                </Button>
-              </div>
+            <CardHeader className="text-center">
+              <CardTitle>Incoming {callState.callType} Call</CardTitle>
+              <p className="text-lg font-medium">{callState.callerName}</p>
+            </CardHeader>
+            <CardContent className="flex gap-4 justify-center">
+              <Button onClick={acceptCall} className="bg-green-500 hover:bg-green-600">
+                Accept
+              </Button>
+              <Button onClick={declineCall} variant="destructive">
+                Decline
+              </Button>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Patient List Sidebar */}
-      <div className="w-1/3 bg-gray-50 border-r border-gray-200">
+      {/* Chat Rooms Sidebar */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Patients</h2>
-        </div>
-        <div className="overflow-y-auto">
-          {patients.map((patient) => (
-            <div
-              key={patient._id}
-              onClick={() => setSelectedPatient(patient)}
-              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-100 ${
-                selectedPatient?._id === patient._id ? 'bg-blue-50 border-blue-200' : ''
-              }`}
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate('/doctor/dashboard')}
+              className="mr-2"
             >
-              <div className="flex items-center space-x-3">
-                <Avatar>
-                  <AvatarFallback>
-                    {patient.name?.charAt(0) || 'P'}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-medium">{patient.name}</h3>
-                  <p className="text-sm text-gray-500">{patient.email}</p>
-                </div>
-              </div>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Patient Chats
+            </h2>
+          </div>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto">
+          {chatRooms.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <p>No patient conversations yet</p>
             </div>
-          ))}
+          ) : (
+            chatRooms.map((room) => {
+              const otherParticipant = room.participants.find(p => p._id !== user?.id);
+              const unreadCount = room.unreadCount?.get?.(user?.id || '') || 0;
+              
+              return (
+                <div
+                  key={room._id}
+                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                    selectedRoom?._id === room._id ? 'bg-blue-50 border-blue-200' : ''
+                  }`}
+                  onClick={() => handleRoomSelect(room)}
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src="" />
+                      <AvatarFallback>
+                        {otherParticipant?.name?.charAt(0) || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-gray-900 truncate">
+                          {otherParticipant?.name || 'Unknown Patient'}
+                        </p>
+                        {unreadCount > 0 && (
+                          <Badge variant="destructive" className="ml-2">
+                            {unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 capitalize">
+                        {otherParticipant?.role || 'Patient'}
+                      </p>
+                      {room.lastMessage && (
+                        <p className="text-sm text-gray-600 truncate mt-1">
+                          Last message...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col">
-        {selectedPatient ? (
+        {selectedRoom ? (
           <>
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Avatar>
+            {/* Chat Header */}
+            <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src="" />
                   <AvatarFallback>
-                    {selectedPatient.name?.charAt(0) || 'P'}
+                    {selectedRoom.participants.find(p => p._id !== user?.id)?.name?.charAt(0) || '?'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="font-semibold">{selectedPatient.name}</h2>
-                  <p className="text-sm text-gray-500">Online</p>
+                  <h3 className="font-medium">
+                    {selectedRoom.participants.find(p => p._id !== user?.id)?.name || 'Unknown Patient'}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Patient
+                  </p>
                 </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => initiateCall('audio')}
+                  disabled={callState.isInCall || callState.isOutgoing}
+                >
+                  <Phone className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => initiateCall('video')}
+                  disabled={callState.isInCall || callState.isOutgoing}
+                >
+                  <Video className="w-4 h-4" />
+                </Button>
               </div>
             </div>
 
-            {/* Call Interface */}
-            {callState.isActive && callState.status !== 'calling' && (
-              <Card className="m-4 border-2 border-blue-500">
-                <CardContent className="p-4">
-                  <div className="text-center">
-                    <h3 className="text-lg font-semibold mb-2">
-                      {callState.status === 'connected' && 'Connected'}
-                      {callState.status === 'declined' && 'Call Declined'}
-                    </h3>
-                    
-                    {callState.callType === 'video' && callState.status === 'connected' && (
-                      <div className="flex space-x-4 mb-4 justify-center">
-                        <video
-                          ref={localVideoRef}
-                          autoPlay
-                          muted
-                          className="w-32 h-24 bg-gray-200 rounded"
-                        />
-                        <video
-                          ref={remoteVideoRef}
-                          autoPlay
-                          className="w-32 h-24 bg-gray-200 rounded"
-                        />
-                      </div>
-                    )}
-                    
-                    {callState.status === 'connected' && (
-                      <Button variant="destructive" onClick={endCall}>
-                        End Call
-                      </Button>
-                    )}
+            {/* Call Status */}
+            {(callState.isOutgoing || callState.isInCall) && (
+              <div className="p-3 bg-blue-50 border-b border-blue-200 text-center">
+                {callState.isOutgoing && (
+                  <p className="text-blue-700">Calling {callState.callerName}...</p>
+                )}
+                {callState.isInCall && (
+                  <div className="flex items-center justify-center gap-4">
+                    <p className="text-blue-700">Connected to {callState.callerName}</p>
+                    <Button size="sm" variant="destructive" onClick={endCall}>
+                      End Call
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div key={message._id} className={`flex ${getMessageAlignment(message)}`}>
-                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${getMessageStyle(message)}`}>
-                    <p className="text-sm">{message.content}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {new Date(message.createdAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
+              {messages.map((message) => {
+                const isOwnMessage = message.senderId._id === user?.id;
+                
+                return (
+                  <div
+                    key={message._id}
+                    className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        isOwnMessage
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-900'
+                      }`}
+                    >
+                      <p>{message.content}</p>
+                      <p
+                        className={`text-xs mt-1 ${
+                          isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+                        }`}
+                      >
+                        {new Date(message.createdAt).toLocaleTimeString()}
+                        {isOwnMessage && message.isRead && (
+                          <span className="ml-1">✓✓</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Message Input */}
-            <div className="bg-white border-t border-gray-200 p-4">
-              <div className="flex space-x-2">
+            <div className="p-4 bg-white border-t border-gray-200">
+              <div className="flex gap-2">
                 <Input
-                  type="text"
-                  placeholder="Type your message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      sendMessage();
-                    }
-                  }}
+                  placeholder="Type a message..."
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   className="flex-1"
                 />
-                <Button onClick={sendMessage} disabled={!newMessage.trim()}>
-                  <Send className="h-4 w-4" />
+                <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                  <Send className="w-4 h-4" />
                 </Button>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-gray-500">Select a patient to start chatting</p>
+          <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No chat selected</h3>
+              <p className="text-gray-500">Choose a patient conversation from the sidebar to start chatting</p>
+            </div>
           </div>
         )}
       </div>
