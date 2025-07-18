@@ -10,6 +10,8 @@ import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Send, Phone, Video, MessageCircle, Users } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+import CallInterface from '../components/CallInterface';
+import { useWebRTC } from '../hooks/useWebRTC';
 
 interface User {
   _id: string;
@@ -47,6 +49,15 @@ const Chat = () => {
     callerName: '',
     callerId: '',
     receiverId: ''
+  });
+
+  const webRTC = useWebRTC({
+    onRemoteStream: (stream) => {
+      console.log('📹 Remote stream received');
+    },
+    onCallEnded: () => {
+      handleCallEnded();
+    }
   });
 
   // Initialize socket connection and load data
@@ -87,6 +98,7 @@ const Chat = () => {
     socketService.onIncomingCall(handleIncomingCall);
     socketService.onCallResponse(handleCallResponse);
     socketService.onCallEnded(handleCallEnded);
+    socketService.onCallSignal(webRTC.handleSignal);
 
     return () => {
       socketService.removeListener('new_message');
@@ -94,6 +106,8 @@ const Chat = () => {
       socketService.removeListener('incoming_call');
       socketService.removeListener('call_response');
       socketService.removeListener('call_ended');
+      socketService.removeListener('call_signal');
+      webRTC.cleanup();
     };
   }, [user]);
 
@@ -263,19 +277,30 @@ const Chat = () => {
     });
   };
 
-  const handleCallResponse = (data: any) => {
+  const handleCallResponse = async (data: any) => {
     if (data.accepted) {
-      setCallState(prev => ({
-        ...prev,
-        isInCall: true,
-        isIncoming: false,
-        isOutgoing: false
-      }));
-      
-      toast({
-        title: "Call Connected",
-        description: "You are now connected to the call"
-      });
+      try {
+        await webRTC.startCall(callState.callType!, data.targetSocketId);
+        
+        setCallState(prev => ({
+          ...prev,
+          isInCall: true,
+          isIncoming: false,
+          isOutgoing: false
+        }));
+        
+        toast({
+          title: "Call Connected",
+          description: "You are now connected to the call"
+        });
+      } catch (error) {
+        console.error('Error starting WebRTC call:', error);
+        toast({
+          title: "Call Failed",
+          description: "Failed to establish call connection",
+          variant: "destructive"
+        });
+      }
     } else {
       setCallState({
         isInCall: false,
@@ -341,12 +366,29 @@ const Chat = () => {
     });
   };
 
-  const acceptCall = () => {
-    socketService.respondToCall({
-      targetSocketId: callState.callerId,
-      accepted: true,
-      callData: callState
-    });
+  const acceptCall = async () => {
+    try {
+      await webRTC.answerCall(callState.callType!, callState.callerId);
+      
+      socketService.respondToCall({
+        targetSocketId: callState.callerId,
+        accepted: true,
+        callData: callState
+      });
+
+      setCallState(prev => ({
+        ...prev,
+        isInCall: true,
+        isIncoming: false
+      }));
+    } catch (error) {
+      console.error('Error accepting call:', error);
+      toast({
+        title: "Call Failed",
+        description: "Failed to accept call",
+        variant: "destructive"
+      });
+    }
   };
 
   const declineCall = () => {
@@ -367,8 +409,7 @@ const Chat = () => {
   };
 
   const endCall = () => {
-    const targetId = callState.isOutgoing ? callState.receiverId : callState.callerId;
-    socketService.endCall({ targetSocketId: targetId });
+    webRTC.endCall();
     
     setCallState({
       isInCall: false,
@@ -394,6 +435,16 @@ const Chat = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Call Interface */}
+      <CallInterface
+        isActive={callState.isInCall}
+        isVideo={callState.callType === 'video'}
+        participantName={callState.callerName || callState.receiverId}
+        onEndCall={endCall}
+        localStream={webRTC.localStream || undefined}
+        remoteStream={webRTC.remoteStream || undefined}
+      />
+
       {/* Incoming Call Modal */}
       {callState.isIncoming && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

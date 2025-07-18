@@ -98,65 +98,6 @@ const Navbar = () => {
 
             {user ? (
               <div className="flex items-center space-x-2">
-                {/* Notifications */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="relative text-gray-700 hover:text-rose-600">
-                      <Bell size={16} />
-                      {unreadCount > 0 && (
-                        <Badge 
-                          className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0"
-                        >
-                          {unreadCount > 9 ? '9+' : unreadCount}
-                        </Badge>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-80">
-                    <div className="p-3 border-b">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium">Notifications</h3>
-                        {unreadCount > 0 && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={markAllAsRead}
-                            className="text-xs"
-                          >
-                            Mark all read
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.length > 0 ? (
-                        notifications.slice(0, 5).map((notification) => (
-                          <DropdownMenuItem 
-                            key={notification.id} 
-                            className={`p-3 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
-                          >
-                            <div className="flex flex-col w-full">
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium text-sm">{notification.title}</span>
-                                <span className="text-xs text-gray-500">
-                                  {notification.timestamp.toLocaleDateString()}
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-600 mt-1 truncate">
-                                {notification.content}
-                              </p>
-                            </div>
-                          </DropdownMenuItem>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center text-gray-500">
-                          <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm">No notifications</p>
-                        </div>
-                      )}
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
 
                 <Link 
                   to={getDashboardRoute()}
