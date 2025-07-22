@@ -4,11 +4,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useNotifications } from '../hooks/useNotifications';
 import { useChatNotifications } from '../hooks/useChatNotifications';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Menu, X, Globe, User, LogOut, MessageCircle, Bell } from 'lucide-react';
+import { Menu, X, Globe, User, LogOut, MessageCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,8 +19,7 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const { unreadCount, notifications, markAllAsRead } = useNotifications();
-  const { chatNotifications } = useChatNotifications();
+  const { chatNotifications, markAllAsRead } = useChatNotifications();
   const navigate = useNavigate();
 
   const handleLogout = () => {

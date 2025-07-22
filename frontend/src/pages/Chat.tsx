@@ -10,7 +10,9 @@ import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Send, Phone, Video, MessageCircle, Users } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+import { useChatNotifications } from '../hooks/useChatNotifications';
 import CallInterface from '../components/CallInterface';
+import MissedCallNotification from '../components/MissedCallNotification';
 import { useWebRTC } from '../hooks/useWebRTC';
 
 interface User {
@@ -30,15 +32,24 @@ interface CallState {
   receiverId: string;
 }
 
+interface MissedCall {
+  id: string;
+  callerName: string;
+  callType: 'audio' | 'video';
+  timestamp: Date;
+}
+
 const Chat = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { markAllAsRead } = useChatNotifications();
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [missedCalls, setMissedCalls] = useState<MissedCall[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [callState, setCallState] = useState<CallState>({
@@ -98,6 +109,7 @@ const Chat = () => {
     socketService.onIncomingCall(handleIncomingCall);
     socketService.onCallResponse(handleCallResponse);
     socketService.onCallEnded(handleCallEnded);
+    socketService.onCallFailed(handleCallFailed);
     socketService.onCallSignal(webRTC.handleSignal);
 
     return () => {
@@ -106,6 +118,7 @@ const Chat = () => {
       socketService.removeListener('incoming_call');
       socketService.removeListener('call_response');
       socketService.removeListener('call_ended');
+      socketService.removeListener('call_failed');
       socketService.removeListener('call_signal');
       webRTC.cleanup();
     };
@@ -150,7 +163,7 @@ const Chat = () => {
       
       // Mark messages as read
       const unreadMessages = roomMessages.filter(msg => 
-        !msg.isRead && msg.receiverId._id === user?.id
+        !msg.isRead && (msg.receiverId._id === user?.id || msg.receiverId._id === user?._id)
       );
       
       for (const msg of unreadMessages) {
@@ -174,6 +187,8 @@ const Chat = () => {
     // Join the socket room
     if (user) {
       socketService.joinRoom(room._id, user.id);
+      // Mark chat notifications as read when opening a room
+      markAllAsRead();
     }
   };
 
@@ -267,13 +282,24 @@ const Chat = () => {
       receiverId: user?.id || ''
     });
 
-    // Play ringing sound (optional)
-    // You can add audio element for ringing sound here
+    // Play notification sound
+    const audio = new Audio('/notification-sound.mp3');
+    audio.play().catch(() => console.log('Could not play notification sound'));
     
     toast({
-      title: `Incoming ${callData.callType} call`,
+      title: `📞 Incoming ${callData.callType} call`,
       description: `${callData.callerName || 'Someone'} is calling you`,
-      duration: 10000
+      duration: 30000,
+      action: (
+        <div className="flex gap-2">
+          <Button size="sm" onClick={acceptCall} className="bg-green-500 hover:bg-green-600">
+            Accept
+          </Button>
+          <Button size="sm" onClick={declineCall} variant="destructive">
+            Decline
+          </Button>
+        </div>
+      )
     });
   };
 
@@ -333,6 +359,42 @@ const Chat = () => {
     toast({
       title: "Call Ended",
       description: "The call has been ended"
+    });
+  };
+
+  const handleCallFailed = (data: { reason: string }) => {
+    console.log('📞 Call failed:', data.reason);
+    
+    // Add to missed calls if it was an incoming call that wasn't answered
+    if (callState.isIncoming) {
+      const missedCall: MissedCall = {
+        id: Date.now().toString(),
+        callerName: callState.callerName,
+        callType: callState.callType!,
+        timestamp: new Date()
+      };
+      setMissedCalls(prev => [missedCall, ...prev]);
+      
+      toast({
+        title: "📞 Missed Call",
+        description: `Missed ${callState.callType} call from ${callState.callerName}`,
+        duration: 10000,
+        action: (
+          <Button size="sm" onClick={() => initiateCall(callState.callType!)}>
+            Call back
+          </Button>
+        )
+      });
+    }
+    
+    setCallState({
+      isInCall: false,
+      isIncoming: false,
+      isOutgoing: false,
+      callType: null,
+      callerName: '',
+      callerId: '',
+      receiverId: ''
     });
   };
 
@@ -447,18 +509,32 @@ const Chat = () => {
 
       {/* Incoming Call Modal */}
       {callState.isIncoming && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-96">
-            <CardHeader className="text-center">
-              <CardTitle>Incoming {callState.callType} Call</CardTitle>
-              <p className="text-lg font-medium">{callState.callerName}</p>
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-pulse">
+          <Card className="w-96 border-2 border-green-500 shadow-2xl">
+            <CardHeader className="text-center bg-gradient-to-r from-green-50 to-blue-50">
+              <CardTitle className="text-xl text-green-700">
+                📞 Incoming {callState.callType} Call
+              </CardTitle>
+              <p className="text-2xl font-bold text-gray-900">{callState.callerName}</p>
+              <p className="text-sm text-gray-600">
+                {callState.callType === 'video' ? '📹 Video Call' : '📞 Voice Call'}
+              </p>
             </CardHeader>
-            <CardContent className="flex gap-4 justify-center">
-              <Button onClick={acceptCall} className="bg-green-500 hover:bg-green-600">
-                Accept
+            <CardContent className="flex gap-4 justify-center p-6">
+              <Button 
+                onClick={acceptCall} 
+                size="lg"
+                className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 text-lg"
+              >
+                ✅ Accept
               </Button>
-              <Button onClick={declineCall} variant="destructive">
-                Decline
+              <Button 
+                onClick={declineCall} 
+                size="lg"
+                variant="destructive"
+                className="px-8 py-3 text-lg"
+              >
+                ❌ Decline
               </Button>
             </CardContent>
           </Card>
@@ -473,6 +549,36 @@ const Chat = () => {
             Chats
           </h2>
         </div>
+
+        {/* Missed Calls Section */}
+        {missedCalls.length > 0 && (
+          <div className="p-4 border-b border-gray-200 bg-red-50">
+            <h3 className="text-sm font-medium text-red-800 mb-2">Missed Calls</h3>
+            <div className="space-y-2">
+              {missedCalls.slice(0, 3).map((missedCall) => (
+                <MissedCallNotification
+                  key={missedCall.id}
+                  callerName={missedCall.callerName}
+                  callType={missedCall.callType}
+                  timestamp={missedCall.timestamp}
+                  onCallBack={() => {
+                    // Find the room with this participant and initiate call
+                    const room = chatRooms.find(r => 
+                      r.participants.some(p => p.name === missedCall.callerName)
+                    );
+                    if (room) {
+                      setSelectedRoom(room);
+                      initiateCall(missedCall.callType);
+                    }
+                  }}
+                  onDismiss={() => {
+                    setMissedCalls(prev => prev.filter(call => call.id !== missedCall.id));
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="flex-1 overflow-y-auto">
           {chatRooms.length === 0 ? (
@@ -574,13 +680,26 @@ const Chat = () => {
 
             {/* Call Status */}
             {(callState.isOutgoing || callState.isInCall) && (
-              <div className="p-3 bg-blue-50 border-b border-blue-200 text-center">
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 border-b border-blue-200 text-center">
                 {callState.isOutgoing && (
-                  <p className="text-blue-700">Calling {callState.callerName}...</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-pulse flex space-x-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    </div>
+                    <p className="text-blue-700 font-medium">📞 Calling {callState.callerName}...</p>
+                    <Button size="sm" variant="destructive" onClick={endCall}>
+                      Cancel
+                    </Button>
+                  </div>
                 )}
                 {callState.isInCall && (
                   <div className="flex items-center justify-center gap-4">
-                    <p className="text-blue-700">Connected to {callState.callerName}</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                      <p className="text-green-700 font-medium">🔗 Connected to {callState.callerName}</p>
+                    </div>
                     <Button size="sm" variant="destructive" onClick={endCall}>
                       End Call
                     </Button>
@@ -592,7 +711,7 @@ const Chat = () => {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((message) => {
-                const isOwnMessage = message.senderId._id === user?.id;
+                const isOwnMessage = message.senderId._id === user?.id || message.senderId._id === user?._id;
                 
                 return (
                   <div
