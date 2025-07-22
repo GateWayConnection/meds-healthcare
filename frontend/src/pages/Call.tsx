@@ -18,29 +18,40 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { useDoctors } from '../hooks/useDoctors';
+import { useWebRTC } from '../hooks/useWebRTC';
+import { socketService } from '../services/socketService';
 
 const Call = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { doctors } = useDoctors();
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
-  const [userStream, setUserStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [doctorSocketId, setDoctorSocketId] = useState<string>('');
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   
   const doctorId = searchParams.get('doctor');
   const callType = searchParams.get('type') as 'audio' | 'video' || 'video';
   const { fetchDoctors } = useDoctors();
   const doctor = doctors.find(d => d._id === doctorId);
+
+  // Use the real WebRTC hook
+  const webRTC = useWebRTC({
+    onRemoteStream: (stream) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = stream;
+      }
+    },
+    onCallEnded: () => {
+      toast.info('Call ended');
+      navigate(`/chat?doctor=${doctorId}`);
+    }
+  });
 
   useEffect(() => {
     if (!user) {
@@ -59,141 +70,78 @@ const Call = () => {
   }, [user, doctorId, navigate, doctors.length, fetchDoctors]);
 
   useEffect(() => {
-    // Check if doctor exists and initialize call
-    if (doctorId && doctors.length > 0) {
+    // Connect socket and set up call listeners
+    if (user) {
+      socketService.connect(user._id);
+      
+      // Listen for call signals
+      socketService.onCallSignal(webRTC.handleSignal);
+      
+      // Listen for call responses
+      socketService.onCallResponse(async (data) => {
+        if (data.accepted && data.targetSocketId) {
+          setDoctorSocketId(data.targetSocketId);
+          // Start the WebRTC call
+          await webRTC.startCall(callType, data.targetSocketId);
+        } else {
+          toast.error('Call was declined');
+          navigate(`/chat?doctor=${doctorId}`);
+        }
+      });
+
+      return () => {
+        socketService.removeListener('call_signal');
+        socketService.removeListener('call_response');
+        webRTC.cleanup();
+      };
+    }
+  }, [user, webRTC, callType, doctorId, navigate]);
+
+  useEffect(() => {
+    // Check if doctor exists and initiate call
+    if (doctorId && doctors.length > 0 && user) {
       if (!doctor) {
         toast.error('Doctor not found');
         navigate('/find-doctor');
         return;
       }
-      initializeCall();
+      
+      // Initiate call through socket
+      socketService.initiateCall({
+        callerId: user._id,
+        receiverId: doctorId,
+        callType: callType
+      });
+      
+      toast.info(`Calling ${doctor.name}...`);
     }
-    return () => {
-      cleanup();
-    };
-  }, [doctorId, doctors, doctor, navigate, callType]);
+  }, [doctorId, doctors, doctor, navigate, callType, user]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isConnected) {
+    if (webRTC.isConnected) {
       interval = setInterval(() => {
         setCallDuration(prev => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isConnected]);
+  }, [webRTC.isConnected]);
 
-  const initializeCall = async () => {
-    try {
-      // Get user media
-      const constraints = {
-        video: callType === 'video',
-        audio: true
-      };
-      
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      setUserStream(stream);
-      
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      // Initialize WebRTC
-      const peerConnection = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' }
-        ]
-      });
-      
-      peerConnectionRef.current = peerConnection;
-
-      // Add local stream to peer connection
-      stream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, stream);
-      });
-
-      // Handle remote stream
-      peerConnection.ontrack = (event) => {
-        const [remoteStream] = event.streams;
-        setRemoteStream(remoteStream);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }
-      };
-
-      // Handle connection state changes
-      peerConnection.onconnectionstatechange = () => {
-        if (peerConnection.connectionState === 'connected') {
-          setIsConnected(true);
-          setIsConnecting(false);
-          toast.success('Call connected');
-        } else if (peerConnection.connectionState === 'failed') {
-          toast.error('Call failed to connect');
-          endCall();
-        }
-      };
-
-      // Simulate connection after 3 seconds
-      setTimeout(() => {
-        setIsConnected(true);
-        setIsConnecting(false);
-        
-        // Simulate doctor video stream
-        if (callType === 'video') {
-          simulateDoctorVideo();
-        }
-      }, 3000);
-
-    } catch (error) {
-      console.error('Error accessing media devices:', error);
-      toast.error('Unable to access camera/microphone');
-      navigate('/find-doctor');
+  // Set up local video stream
+  useEffect(() => {
+    if (webRTC.localStream && localVideoRef.current) {
+      localVideoRef.current.srcObject = webRTC.localStream;
     }
-  };
-
-  const simulateDoctorVideo = () => {
-    // Create a canvas element to simulate doctor video
-    const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
-    
-    if (ctx) {
-      // Draw a simple placeholder for doctor video
-      ctx.fillStyle = '#f3f4f6';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#6b7280';
-      ctx.font = '24px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(doctor?.name || 'Doctor', canvas.width / 2, canvas.height / 2);
-      ctx.fillText('Video Feed', canvas.width / 2, canvas.height / 2 + 40);
-    }
-
-    const stream = canvas.captureStream(30);
-    setRemoteStream(stream);
-    
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = stream;
-    }
-  };
-
-  const cleanup = () => {
-    if (userStream) {
-      userStream.getTracks().forEach(track => track.stop());
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-    }
-  };
+  }, [webRTC.localStream]);
 
   const endCall = () => {
-    cleanup();
+    webRTC.endCall();
     navigate(`/chat?doctor=${doctorId}`);
   };
 
   const toggleMute = () => {
-    if (userStream) {
-      const audioTrack = userStream.getAudioTracks()[0];
+    if (webRTC.localStream) {
+      const audioTrack = webRTC.localStream.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
@@ -202,8 +150,8 @@ const Call = () => {
   };
 
   const toggleVideo = () => {
-    if (userStream) {
-      const videoTrack = userStream.getVideoTracks()[0];
+    if (webRTC.localStream) {
+      const videoTrack = webRTC.localStream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoOn(videoTrack.enabled);
@@ -218,32 +166,12 @@ const Call = () => {
         audio: true
       });
       
-      // Replace video track with screen share
-      if (peerConnectionRef.current && userStream) {
-        const videoTrack = stream.getVideoTracks()[0];
-        const sender = peerConnectionRef.current.getSenders().find(s => 
-          s.track?.kind === 'video'
-        );
-        
-        if (sender) {
-          await sender.replaceTrack(videoTrack);
-        }
-      }
-      
       setIsScreenSharing(true);
+      toast.success('Screen sharing started');
       
       stream.getVideoTracks()[0].onended = () => {
         setIsScreenSharing(false);
-        // Switch back to camera
-        if (userStream) {
-          const cameraTrack = userStream.getVideoTracks()[0];
-          const sender = peerConnectionRef.current?.getSenders().find(s => 
-            s.track?.kind === 'video'
-          );
-          if (sender && cameraTrack) {
-            sender.replaceTrack(cameraTrack);
-          }
-        }
+        toast.info('Screen sharing stopped');
       };
       
     } catch (error) {
@@ -285,7 +213,7 @@ const Call = () => {
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs">{doctor.specialty}</Badge>
                 <span className="text-sm text-gray-300">
-                  {isConnecting ? 'Connecting...' : isConnected ? `Connected • ${formatTime(callDuration)}` : 'Not connected'}
+                  {webRTC.isConnecting ? 'Connecting...' : webRTC.isConnected ? `Connected • ${formatTime(callDuration)}` : 'Calling...'}
                 </span>
               </div>
             </div>
@@ -372,7 +300,7 @@ const Call = () => {
             <div>
               <h2 className="text-2xl font-semibold mb-2">{doctor.name}</h2>
               <p className="text-gray-300">Audio call in progress</p>
-              {isConnected && (
+              {webRTC.isConnected && (
                 <p className="text-lg mt-4">{formatTime(callDuration)}</p>
               )}
             </div>
@@ -446,7 +374,7 @@ const Call = () => {
         
         <div className="text-center mt-4">
           <p className="text-sm text-gray-400">
-            {isConnecting ? 'Connecting to doctor...' : 'Call in progress'}
+            {webRTC.isConnecting ? 'Connecting to doctor...' : webRTC.isConnected ? 'Call in progress' : 'Waiting for doctor...'}
           </p>
         </div>
       </div>

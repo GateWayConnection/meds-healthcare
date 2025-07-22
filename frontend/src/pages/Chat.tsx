@@ -13,6 +13,7 @@ import { useToast } from '../hooks/use-toast';
 import { useChatNotifications } from '../hooks/useChatNotifications';
 import CallInterface from '../components/CallInterface';
 import MissedCallNotification from '../components/MissedCallNotification';
+import { IncomingCallModal } from '../components/IncomingCallModal';
 import { useWebRTC } from '../hooks/useWebRTC';
 
 interface User {
@@ -60,6 +61,18 @@ const Chat = () => {
     callerName: '',
     callerId: '',
     receiverId: ''
+  });
+
+  const [incomingCall, setIncomingCall] = useState<{
+    isVisible: boolean;
+    callerName: string;
+    callerImage?: string;
+    callType: 'audio' | 'video';
+    callData?: any;
+  }>({
+    isVisible: false,
+    callerName: '',
+    callType: 'video'
   });
 
   const webRTC = useWebRTC({
@@ -272,6 +285,15 @@ const Chat = () => {
   const handleIncomingCall = (callData: any) => {
     console.log('📞 Incoming call:', callData);
     
+    // Show incoming call modal
+    setIncomingCall({
+      isVisible: true,
+      callerName: callData.callerName || 'Unknown',
+      callerImage: callData.callerImage,
+      callType: callData.callType,
+      callData: callData
+    });
+    
     setCallState({
       isInCall: false,
       isIncoming: true,
@@ -285,22 +307,6 @@ const Chat = () => {
     // Play notification sound
     const audio = new Audio('/notification-sound.mp3');
     audio.play().catch(() => console.log('Could not play notification sound'));
-    
-    toast({
-      title: `📞 Incoming ${callData.callType} call`,
-      description: `${callData.callerName || 'Someone'} is calling you`,
-      duration: 30000,
-      action: (
-        <div className="flex gap-2">
-          <Button size="sm" onClick={acceptCall} className="bg-green-500 hover:bg-green-600">
-            Accept
-          </Button>
-          <Button size="sm" onClick={declineCall} variant="destructive">
-            Decline
-          </Button>
-        </div>
-      )
-    });
   };
 
   const handleCallResponse = async (data: any) => {
@@ -428,14 +434,19 @@ const Chat = () => {
     });
   };
 
-  const acceptCall = async () => {
+  const handleAcceptCall = async () => {
+    if (!incomingCall.callData) return;
+
     try {
-      await webRTC.answerCall(callState.callType!, callState.callerId);
+      // Close incoming call modal
+      setIncomingCall(prev => ({ ...prev, isVisible: false }));
+      
+      await webRTC.answerCall(callState.callType!, incomingCall.callData.targetSocketId);
       
       socketService.respondToCall({
-        targetSocketId: callState.callerId,
+        targetSocketId: incomingCall.callData.targetSocketId,
         accepted: true,
-        callData: callState
+        callData: incomingCall.callData
       });
 
       setCallState(prev => ({
@@ -443,6 +454,11 @@ const Chat = () => {
         isInCall: true,
         isIncoming: false
       }));
+      
+      toast({
+        title: "Call Connected",
+        description: "You are now connected to the call"
+      });
     } catch (error) {
       console.error('Error accepting call:', error);
       toast({
@@ -453,9 +469,14 @@ const Chat = () => {
     }
   };
 
-  const declineCall = () => {
+  const handleDeclineCall = () => {
+    if (!incomingCall.callData) return;
+    
+    // Close incoming call modal
+    setIncomingCall(prev => ({ ...prev, isVisible: false }));
+    
     socketService.respondToCall({
-      targetSocketId: callState.callerId,
+      targetSocketId: incomingCall.callData.targetSocketId,
       accepted: false
     });
     
@@ -508,38 +529,14 @@ const Chat = () => {
       />
 
       {/* Incoming Call Modal */}
-      {callState.isIncoming && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-pulse">
-          <Card className="w-96 border-2 border-green-500 shadow-2xl">
-            <CardHeader className="text-center bg-gradient-to-r from-green-50 to-blue-50">
-              <CardTitle className="text-xl text-green-700">
-                📞 Incoming {callState.callType} Call
-              </CardTitle>
-              <p className="text-2xl font-bold text-gray-900">{callState.callerName}</p>
-              <p className="text-sm text-gray-600">
-                {callState.callType === 'video' ? '📹 Video Call' : '📞 Voice Call'}
-              </p>
-            </CardHeader>
-            <CardContent className="flex gap-4 justify-center p-6">
-              <Button 
-                onClick={acceptCall} 
-                size="lg"
-                className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 text-lg"
-              >
-                ✅ Accept
-              </Button>
-              <Button 
-                onClick={declineCall} 
-                size="lg"
-                variant="destructive"
-                className="px-8 py-3 text-lg"
-              >
-                ❌ Decline
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <IncomingCallModal
+        isOpen={incomingCall.isVisible}
+        callerName={incomingCall.callerName}
+        callerImage={incomingCall.callerImage}
+        callType={incomingCall.callType}
+        onAccept={handleAcceptCall}
+        onDecline={handleDeclineCall}
+      />
 
       {/* Chat Rooms Sidebar */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
