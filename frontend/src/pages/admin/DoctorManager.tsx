@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,124 +5,71 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
-import { Search, Users, UserPlus, Edit, Trash2, Stethoscope } from 'lucide-react';
-import { useDoctors } from '../../hooks/useDoctors';
+import { Search, Stethoscope, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { useAdminDoctors } from '../../hooks/useAdminDoctors';
 import { useSpecialties } from '../../hooks/useSpecialties';
 import { toast } from 'sonner';
 
 const DoctorManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSpecialty, setFilterSpecialty] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingDoctor, setEditingDoctor] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    specialtyId: '',
-    experience: '',
-    rating: '',
-    image: '',
-    qualifications: '',
-    consultationFee: '',
-    isAvailable: true,
-    isActive: true
-  });
+  const [filterStatus, setFilterStatus] = useState('all');
 
-  const { doctors, loading, createDoctor, updateDoctor, deleteDoctor, refetch } = useDoctors();
+  const { doctors, pendingDoctors, loading, error, verifyDoctor, unverifyDoctor, refetch } = useAdminDoctors();
   const { specialties } = useSpecialties();
 
   const filteredDoctors = doctors.filter((doctor: any) => {
     const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doctor.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSpecialty = !filterSpecialty || doctor.specialty === filterSpecialty;
-    return matchesSearch && matchesSpecialty;
+    const matchesSpecialty = !filterSpecialty || filterSpecialty === 'All' || doctor.specialty === filterSpecialty;
+    const matchesStatus = filterStatus === 'all' || 
+                          (filterStatus === 'verified' && doctor.isActive) ||
+                          (filterStatus === 'pending' && !doctor.isActive);
+    return matchesSearch && matchesSpecialty && matchesStatus;
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifyDoctor = async (doctorId: string) => {
     try {
-      const doctorData = {
-        ...formData,
-        experience: parseInt(formData.experience),
-        rating: parseFloat(formData.rating),
-        consultationFee: parseFloat(formData.consultationFee),
-        qualifications: formData.qualifications.split(',').map(q => q.trim()).filter(q => q)
-      };
-
-      if (editingDoctor) {
-        await updateDoctor(editingDoctor._id, doctorData);
-        toast.success('Doctor updated successfully');
-      } else {
-        await createDoctor(doctorData);
-        toast.success('Doctor created successfully');
-      }
-
-      setIsDialogOpen(false);
-      resetForm();
-      refetch();
+      await verifyDoctor(doctorId);
+      toast.success('Doctor verified successfully');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'An error occurred');
+      toast.error(error instanceof Error ? error.message : 'Failed to verify doctor');
     }
   };
 
-  const handleEdit = (doctor: any) => {
-    setEditingDoctor(doctor);
-    setFormData({
-      name: doctor.name,
-      email: doctor.email,
-      specialtyId: doctor.specialtyId._id || doctor.specialtyId,
-      experience: doctor.experience.toString(),
-      rating: doctor.rating.toString(),
-      image: doctor.image || '',
-      qualifications: doctor.qualifications ? doctor.qualifications.join(', ') : '',
-      consultationFee: doctor.consultationFee.toString(),
-      isAvailable: doctor.isAvailable !== undefined ? doctor.isAvailable : true,
-      isActive: doctor.isActive !== undefined ? doctor.isActive : true
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this doctor?')) {
+  const handleUnverifyDoctor = async (doctorId: string) => {
+    if (window.confirm('Are you sure you want to unverify this doctor? They will not be able to log in.')) {
       try {
-        await deleteDoctor(id);
-        toast.success('Doctor deleted successfully');
-        refetch();
+        await unverifyDoctor(doctorId);
+        toast.success('Doctor unverified successfully');
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to delete doctor');
+        toast.error(error instanceof Error ? error.message : 'Failed to unverify doctor');
       }
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      email: '',
-      specialtyId: '',
-      experience: '',
-      rating: '',
-      image: '',
-      qualifications: '',
-      consultationFee: '',
-      isAvailable: true,
-      isActive: true
-    });
-    setEditingDoctor(null);
+  const getVerificationStatus = (doctor: any) => {
+    if (!doctor.isActive) {
+      return {
+        text: 'Pending',
+        color: 'bg-yellow-100 text-yellow-800',
+        icon: Clock
+      };
+    }
+    return {
+      text: 'Verified',
+      color: 'bg-green-100 text-green-800',
+      icon: CheckCircle
+    };
   };
 
-  const getStatusColor = (doctor: any) => {
-    if (!doctor.isActive) return 'bg-gray-100 text-gray-800';
+  const getAvailabilityStatus = (doctor: any) => {
     if (!doctor.isAvailable) return 'bg-red-100 text-red-800';
     return 'bg-green-100 text-green-800';
   };
 
-  const getStatusText = (doctor: any) => {
-    if (!doctor.isActive) return 'Inactive';
+  const getAvailabilityText = (doctor: any) => {
     if (!doctor.isAvailable) return 'Unavailable';
     return 'Available';
   };
@@ -150,156 +96,30 @@ const DoctorManager = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Doctor Management</h1>
-            <p className="text-gray-600">Manage doctors and their availability</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Doctor Verification Management</h1>
+            <p className="text-gray-600">Manage doctor verification status and approve new registrations</p>
           </motion.div>
+
+          {/* Pending Doctors Alert */}
+          {pendingDoctors.length > 0 && (
+            <Card className="shadow-lg mb-6 border-yellow-200 bg-yellow-50">
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
+                  <span className="font-medium text-yellow-800">
+                    {pendingDoctors.length} doctor{pendingDoctors.length !== 1 ? 's' : ''} awaiting verification
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="shadow-lg mb-8">
             <CardHeader>
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                <CardTitle className="flex items-center mb-4 md:mb-0">
-                  <Stethoscope className="w-5 h-5 mr-2 text-rose-600" />
-                  All Doctors ({filteredDoctors.length})
-                </CardTitle>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-rose-600 hover:bg-rose-700" onClick={resetForm}>
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Add Doctor
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>{editingDoctor ? 'Edit Doctor' : 'Add New Doctor'}</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="name">Name *</Label>
-                          <Input
-                            id="name"
-                            value={formData.name}
-                            onChange={(e) => setFormData({...formData, name: e.target.value})}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="email">Email *</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({...formData, email: e.target.value})}
-                            required
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="specialty">Specialty *</Label>
-                          <Select value={formData.specialtyId} onValueChange={(value) => setFormData({...formData, specialtyId: value})}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select specialty" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {specialties.map((specialty: any) => (
-                                <SelectItem key={specialty._id} value={specialty._id}>
-                                  {specialty.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="experience">Years of Experience *</Label>
-                          <Input
-                            id="experience"
-                            type="number"
-                            value={formData.experience}
-                            onChange={(e) => setFormData({...formData, experience: e.target.value})}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="rating">Rating (1-5)</Label>
-                          <Input
-                            id="rating"
-                            type="number"
-                            step="0.1"
-                            min="1"
-                            max="5"
-                            value={formData.rating}
-                            onChange={(e) => setFormData({...formData, rating: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="consultationFee">Consultation Fee ($) *</Label>
-                          <Input
-                            id="consultationFee"
-                            type="number"
-                            step="0.01"
-                            value={formData.consultationFee}
-                            onChange={(e) => setFormData({...formData, consultationFee: e.target.value})}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="image">Profile Image URL</Label>
-                        <Input
-                          id="image"
-                          value={formData.image}
-                          onChange={(e) => setFormData({...formData, image: e.target.value})}
-                          placeholder="/placeholder.svg"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="qualifications">Qualifications (comma-separated)</Label>
-                        <Textarea
-                          id="qualifications"
-                          value={formData.qualifications}
-                          onChange={(e) => setFormData({...formData, qualifications: e.target.value})}
-                          placeholder="MD, MBBS, Specialist in..."
-                        />
-                      </div>
-
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            id="isAvailable"
-                            checked={formData.isAvailable}
-                            onCheckedChange={(checked) => setFormData({...formData, isAvailable: checked})}
-                          />
-                          <Label htmlFor="isAvailable">Available for appointments</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            id="isActive"
-                            checked={formData.isActive}
-                            onCheckedChange={(checked) => setFormData({...formData, isActive: checked})}
-                          />
-                          <Label htmlFor="isActive">Active profile</Label>
-                        </div>
-                      </div>
-
-                      <div className="flex space-x-2 pt-4">
-                        <Button type="submit" className="flex-1">
-                          {editingDoctor ? 'Update Doctor' : 'Create Doctor'}
-                        </Button>
-                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <CardTitle className="flex items-center">
+                <Stethoscope className="w-5 h-5 mr-2 text-rose-600" />
+                All Doctors ({filteredDoctors.length})
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -323,6 +143,16 @@ const DoctorManager = () => {
                         {specialty.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-full md:w-48">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="verified">Verified</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -350,6 +180,9 @@ const DoctorManager = () => {
                         <h3 className="font-medium text-gray-900">{doctor.name}</h3>
                         <p className="text-sm text-gray-600">{doctor.email}</p>
                         <p className="text-sm text-blue-600">{doctor.specialty} • {doctor.experience} years</p>
+                        {doctor.qualifications && doctor.qualifications.length > 0 && (
+                          <p className="text-xs text-gray-500">{doctor.qualifications.join(', ')}</p>
+                        )}
                       </div>
                     </div>
                     
@@ -358,21 +191,39 @@ const DoctorManager = () => {
                         <p className="text-sm font-medium">${doctor.consultationFee}</p>
                         <p className="text-xs text-gray-500">Consultation Fee</p>
                       </div>
-                      <Badge className={getStatusColor(doctor)}>
-                        {getStatusText(doctor)}
-                      </Badge>
+                      
+                      <div className="flex flex-col space-y-1">
+                        <Badge className={getVerificationStatus(doctor).color}>
+                          {React.createElement(getVerificationStatus(doctor).icon, { className: "w-3 h-3 mr-1" })}
+                          {getVerificationStatus(doctor).text}
+                        </Badge>
+                        <Badge className={getAvailabilityStatus(doctor)}>
+                          {getAvailabilityText(doctor)}
+                        </Badge>
+                      </div>
+
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(doctor)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(doctor._id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {!doctor.isActive ? (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-green-600 hover:text-green-700 border-green-300 hover:bg-green-50"
+                            onClick={() => handleVerifyDoctor(doctor._id)}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-yellow-600 hover:text-yellow-700 border-yellow-300 hover:bg-yellow-50"
+                            onClick={() => handleUnverifyDoctor(doctor._id)}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Revoke
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </motion.div>
