@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Doctor = require('../models/Doctor');
+const Specialty = require('../models/Specialty');
 const validator = require('validator');
 
 const generateToken = (userId) => {
@@ -91,6 +93,40 @@ const register = async (req, res) => {
 
     const user = new User(userData);
     await user.save();
+
+    // If doctor registration, also create entry in Doctor collection for homepage display
+    if (role === 'doctor') {
+      try {
+        // Find or create specialty
+        let specialtyDoc = await Specialty.findOne({ name: specialty });
+        if (!specialtyDoc) {
+          specialtyDoc = new Specialty({ 
+            name: specialty, 
+            description: `${specialty} specialty` 
+          });
+          await specialtyDoc.save();
+        }
+
+        // Create doctor entry for homepage display
+        const doctorEntry = new Doctor({
+          name: user.name,
+          email: user.email,
+          specialtyId: specialtyDoc._id,
+          specialty: specialty,
+          experience: experience,
+          consultationFee: 50, // Default fee
+          rating: 4.5, // Default rating
+          qualifications: bio ? [bio] : [],
+          isAvailable: false, // Initially false until verified
+          isActive: false // Initially false until verified
+        });
+        
+        await doctorEntry.save();
+      } catch (doctorCreationError) {
+        console.error('Error creating doctor entry:', doctorCreationError);
+        // Don't fail the registration if doctor entry creation fails
+      }
+    }
 
     // Generate token
     const token = generateToken(user._id);

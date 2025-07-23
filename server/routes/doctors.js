@@ -76,7 +76,9 @@ router.post('/', authenticate, async (req, res) => {
       image, 
       qualifications, 
       availability, 
-      consultationFee 
+      consultationFee,
+      phone,
+      password = 'defaultPassword123' // Default password for admin-created doctors
     } = req.body;
     
     if (!name || !email || !specialtyId || !experience || !consultationFee) {
@@ -91,6 +93,7 @@ router.post('/', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid specialty' });
     }
 
+    // Create doctor in Doctor collection
     const doctor = new Doctor({
       name: name.trim(),
       email: email.toLowerCase().trim(),
@@ -105,6 +108,35 @@ router.post('/', authenticate, async (req, res) => {
     });
 
     await doctor.save();
+
+    // Also create corresponding User entry for login access
+    try {
+      const User = require('../models/User');
+      
+      // Check if user already exists
+      const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+      
+      if (!existingUser) {
+        const userEntry = new User({
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          phone: phone || `+249${Math.floor(Math.random() * 1000000000)}`, // Generate random phone if not provided
+          password: password,
+          role: 'doctor',
+          specialty: specialty.name,
+          licenseNumber: `LIC_${Date.now()}`, // Generate unique license number
+          experience: experience,
+          bio: qualifications ? qualifications.join(', ') : '',
+          verified: true, // Admin-created doctors are pre-verified
+          isActive: true
+        });
+        
+        await userEntry.save();
+      }
+    } catch (userCreationError) {
+      console.error('Error creating user entry for doctor:', userCreationError);
+      // Don't fail the doctor creation if user entry creation fails
+    }
     
     const populatedDoctor = await Doctor.findById(doctor._id)
       .populate('specialtyId', 'name description');
