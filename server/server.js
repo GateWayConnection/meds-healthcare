@@ -18,6 +18,7 @@ const blogRoutes = require('./routes/blogs');
 const activityRoutes = require('./routes/activities');
 const testimonialRoutes = require('./routes/testimonials');
 const chatRoutes = require('./routes/chat');
+const adminRoutes = require('./routes/admin');
 
 // Load environment variables
 dotenv.config();
@@ -67,6 +68,7 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/chat', chatRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
