@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,30 @@ import { Calendar, Users, Clock, TrendingUp, Eye, Edit, Trash2 } from 'lucide-re
 import { useAppointments } from '../../hooks/useAppointments';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import { socketService } from '../../services/socketService';
+import { IncomingCallModal } from '../../components/IncomingCallModal';
+import MissedCallNotification from '../../components/MissedCallNotification';
+
+interface MissedCall {
+  id: string;
+  callerName: string;
+  callType: 'audio' | 'video';
+  timestamp: Date;
+}
+
+interface CallState {
+  isOpen: boolean;
+  callerName: string;
+  callerImage?: string;
+  callType: 'audio' | 'video';
+  callerId: string;
+}
 
 const DoctorDashboard = () => {
   const { appointments, updateAppointmentStatus, loading } = useAppointments();
   const { user } = useAuth();
+  const [incomingCall, setIncomingCall] = useState<CallState | null>(null);
+  const [missedCalls, setMissedCalls] = useState<MissedCall[]>([]);
 
   // Filter appointments for current doctor
   const doctorAppointments = appointments.filter(apt => 
@@ -32,6 +52,121 @@ const DoctorDashboard = () => {
   });
 
   const uniquePatients = [...new Set(doctorAppointments.map(apt => apt.patientEmail))];
+
+  // Initialize socket connection for call notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const initializeSocket = async () => {
+      try {
+        await socketService.connect(user.id);
+        
+        // Set up call listeners
+        socketService.onIncomingCall(handleIncomingCall);
+        socketService.onCallEnded(handleCallEnded);
+        socketService.onCallFailed(handleCallFailed);
+        
+      } catch (error) {
+        console.error('❌ Error initializing socket:', error);
+      }
+    };
+
+    initializeSocket();
+
+    return () => {
+      socketService.removeListener('incoming_call');
+      socketService.removeListener('call_ended');
+      socketService.removeListener('call_failed');
+    };
+  }, [user]);
+
+  const handleIncomingCall = (callData: any) => {
+    console.log('📞 Doctor receiving incoming call:', callData);
+    
+    // Play ringing sound
+    try {
+      const audio = new Audio('/notification.mp3');
+      audio.loop = true;
+      audio.play().catch(e => console.log('Could not play ringtone'));
+      
+      // Stop ringing after 30 seconds
+      setTimeout(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      }, 30000);
+    } catch (error) {
+      console.log('Ringtone not available');
+    }
+
+    setIncomingCall({
+      isOpen: true,
+      callerName: callData.callerName || 'Patient',
+      callerImage: callData.callerImage,
+      callType: callData.callType,
+      callerId: callData.callerId
+    });
+  };
+
+  const handleCallEnded = () => {
+    setIncomingCall(null);
+  };
+
+  const handleCallFailed = (data: { reason: string }) => {
+    console.log('📞 Call failed:', data.reason);
+    
+    // Add to missed calls if it was an incoming call that wasn't answered
+    if (incomingCall) {
+      const missedCall: MissedCall = {
+        id: Date.now().toString(),
+        callerName: incomingCall.callerName,
+        callType: incomingCall.callType,
+        timestamp: new Date()
+      };
+      setMissedCalls(prev => [missedCall, ...prev]);
+      
+      toast.error(`Missed ${incomingCall.callType} call from ${incomingCall.callerName}`);
+    }
+    
+    setIncomingCall(null);
+  };
+
+  const handleAcceptCall = () => {
+    if (!incomingCall) return;
+    
+    socketService.respondToCall({
+      targetSocketId: incomingCall.callerId,
+      accepted: true,
+      callData: incomingCall
+    });
+    
+    // Navigate to call interface
+    const callUrl = `/call?doctor=${user?.id}&patient=${incomingCall.callerId}&type=${incomingCall.callType}`;
+    window.open(callUrl, '_blank');
+    
+    setIncomingCall(null);
+    toast.success('Call accepted');
+  };
+
+  const handleDeclineCall = () => {
+    if (!incomingCall) return;
+    
+    socketService.respondToCall({
+      targetSocketId: incomingCall.callerId,
+      accepted: false
+    });
+    
+    // Add to missed calls
+    const missedCall: MissedCall = {
+      id: Date.now().toString(),
+      callerName: incomingCall.callerName,
+      callType: incomingCall.callType,
+      timestamp: new Date()
+    };
+    setMissedCalls(prev => [missedCall, ...prev]);
+    
+    setIncomingCall(null);
+    toast.info('Call declined');
+  };
 
   const handleStatusUpdate = async (appointmentId: string, status: string) => {
     try {
@@ -126,6 +261,40 @@ const DoctorDashboard = () => {
             </Card>
           </div>
 
+          {/* Missed Calls Section */}
+          {missedCalls.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8"
+            >
+              <Card className="shadow-lg border-red-200">
+                <CardHeader>
+                  <CardTitle className="text-red-800">📞 Missed Calls</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {missedCalls.slice(0, 3).map((missedCall) => (
+                      <MissedCallNotification
+                        key={missedCall.id}
+                        callerName={missedCall.callerName}
+                        callType={missedCall.callType}
+                        timestamp={missedCall.timestamp}
+                        onCallBack={() => {
+                          toast.info(`Calling back ${missedCall.callerName}...`);
+                          // Could implement callback functionality here
+                        }}
+                        onDismiss={() => {
+                          setMissedCalls(prev => prev.filter(call => call.id !== missedCall.id));
+                        }}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="shadow-lg">
               <CardHeader>
@@ -201,6 +370,18 @@ const DoctorDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Incoming Call Modal */}
+      {incomingCall && (
+        <IncomingCallModal
+          isOpen={incomingCall.isOpen}
+          callerName={incomingCall.callerName}
+          callerImage={incomingCall.callerImage}
+          callType={incomingCall.callType}
+          onAccept={handleAcceptCall}
+          onDecline={handleDeclineCall}
+        />
+      )}
     </Layout>
   );
 };

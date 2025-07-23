@@ -58,18 +58,13 @@ const PatientDashboard = () => {
         break;
         
       case 'consultation':
-        // For video consultation - could integrate with video calling service
+        // Navigate to chat/call interface for doctor consultation
         toast({
-          title: "Video Consultation",
-          description: "Starting video consultation... Please wait.",
+          title: "Starting Consultation",
+          description: "Connecting you to available doctors...",
         });
-        // Simulate video call initialization
-        setTimeout(() => {
-          toast({
-            title: "Consultation Ready",
-            description: "Your video consultation is ready. Click to join.",
-          });
-        }, 2000);
+        // Navigate to chat where patients can call doctors
+        window.location.href = '/chat';
         break;
         
       case 'support':
@@ -304,12 +299,19 @@ const PatientDashboard = () => {
                   <div className="text-center py-8">
                     <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-3" />
                     <p className="text-gray-500">No upcoming appointments</p>
-                    <Button 
-                      className="mt-3"
-                      onClick={() => window.location.href = '/book-appointment'}
-                    >
-                      Book Appointment
-                    </Button>
+                <div className="flex gap-2 mt-3">
+                  <Button 
+                    onClick={() => window.location.href = '/book-appointment'}
+                  >
+                    Book Appointment
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.location.href = '/chat'}
+                  >
+                    💬 Chat with Doctor
+                  </Button>
+                </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
