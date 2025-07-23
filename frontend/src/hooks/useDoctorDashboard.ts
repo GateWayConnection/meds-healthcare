@@ -9,21 +9,20 @@ interface DashboardStats {
   pendingApprovals: number;
 }
 
-interface PendingUser {
+interface PendingDoctor {
   _id: string;
   name: string;
   email: string;
-  phone: string;
-  role: string;
-  specialty?: string;
-  licenseNumber?: string;
-  verified: boolean;
+  specialty: string;
+  experience: number;
+  consultationFee: number;
+  isActive: boolean;
   createdAt: string;
 }
 
 export const useDoctorDashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+  const [pendingDoctors, setPendingDoctors] = useState<PendingDoctor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,16 +30,16 @@ export const useDoctorDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      const [statsData, usersData] = await Promise.all([
+      const [statsData, doctorsData] = await Promise.all([
         apiService.getStats(),
-        apiService.getUsers()
+        apiService.getAllDoctors()
       ]);
       
       setStats(statsData);
       
-      // Filter users who are not verified (pending approval)
-      const pending = usersData.filter((user: any) => !user.verified && user.isActive);
-      setPendingUsers(pending);
+      // Filter doctors who are not active (pending approval)
+      const pending = doctorsData.filter((doctor: any) => !doctor.isActive);
+      setPendingDoctors(pending);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
     } finally {
@@ -48,16 +47,29 @@ export const useDoctorDashboard = () => {
     }
   };
 
-  const approveUser = async (userId: string) => {
+  const approveDoctor = async (doctorId: string) => {
     try {
       setError(null);
-      await apiService.updateUser(userId, { verified: true });
-      setPendingUsers(prev => prev.filter(user => user._id !== userId));
+      await apiService.verifyDoctor(doctorId);
+      setPendingDoctors(prev => prev.filter(doctor => doctor._id !== doctorId));
       
       // Refresh stats
       await fetchDashboardStats();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve user');
+      setError(err instanceof Error ? err.message : 'Failed to approve doctor');
+      throw err;
+    }
+  };
+
+  const rejectDoctor = async (doctorId: string) => {
+    try {
+      setError(null);
+      await apiService.unverifyDoctor(doctorId);
+      
+      // Refresh stats
+      await fetchDashboardStats();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reject doctor');
       throw err;
     }
   };
@@ -68,10 +80,11 @@ export const useDoctorDashboard = () => {
 
   return {
     stats,
-    pendingUsers,
+    pendingDoctors,
     loading,
     error,
-    approveUser,
+    approveDoctor,
+    rejectDoctor,
     refetch: fetchDashboardStats
   };
 };

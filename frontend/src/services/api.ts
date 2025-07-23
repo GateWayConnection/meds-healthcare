@@ -98,6 +98,15 @@ class ApiService {
     return this.delete(`/doctors/${id}`);
   }
 
+  // Admin doctor verification endpoints
+  async verifyDoctor(id: string) {
+    return this.put(`/admin/verify-doctor/${id}`);
+  }
+
+  async unverifyDoctor(id: string) {
+    return this.put(`/admin/unverify-doctor/${id}`);
+  }
+
   // Appointments endpoints
   async getAppointments() {
     return this.get('/appointments');
