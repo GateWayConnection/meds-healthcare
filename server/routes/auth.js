@@ -92,6 +92,80 @@ router.put('/users/:id', authenticate, async (req, res) => {
   }
 });
 
+// POST /api/auth/users - Create user (admin only)
+router.post('/users', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admin only.' });
+    }
+
+    const { name, email, phone, role, password } = req.body;
+
+    if (!name || !email || !phone || !password || !role) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [{ email: email.toLowerCase() }, { phone }]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this email or phone already exists' });
+    }
+
+    // Create user with verified status for doctors created by admin
+    const userData = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
+      password,
+      role,
+      verified: true, // Admin-created users are automatically verified
+      isActive: true
+    };
+
+    const user = new User(userData);
+    await user.save();
+
+    // If doctor, create Doctor entry as well
+    if (role === 'doctor') {
+      const Doctor = require('../models/Doctor');
+      const Specialty = require('../models/Specialty');
+      
+      // Create a default specialty if needed
+      let specialtyDoc = await Specialty.findOne({ name: 'General Medicine' });
+      if (!specialtyDoc) {
+        specialtyDoc = new Specialty({ 
+          name: 'General Medicine', 
+          description: 'General medical practice' 
+        });
+        await specialtyDoc.save();
+      }
+
+      const doctorEntry = new Doctor({
+        name: user.name,
+        email: user.email,
+        specialtyId: specialtyDoc._id,
+        specialty: 'General Medicine',
+        experience: 5,
+        consultationFee: 50,
+        rating: 4.5,
+        qualifications: [],
+        isAvailable: true, // Admin-created doctors are active
+        isActive: true
+      });
+      
+      await doctorEntry.save();
+    }
+
+    res.status(201).json(user);
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
 // DELETE /api/auth/users/:id - Delete user (admin only)
 router.delete('/users/:id', authenticate, async (req, res) => {
   try {

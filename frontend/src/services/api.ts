@@ -31,7 +31,7 @@ class ApiService {
   }
 
   async createUser(userData: any) {
-    return this.post('/auth/register', userData);
+    return this.post('/auth/users', userData);
   }
 
   async updateUser(id: string, userData: any) {

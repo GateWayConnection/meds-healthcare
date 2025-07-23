@@ -196,7 +196,7 @@ const login = async (req, res) => {
     }
 
     // Check if doctor is verified
-    if (user.role === 'doctor' && !user.isVerified) {
+    if (user.role === 'doctor' && !user.verified) {
       return res.status(401).json({
         success: false,
         message: 'Doctor account is pending verification. Please contact admin.'
