@@ -59,7 +59,10 @@ const DoctorDashboard = () => {
 
     const initializeSocket = async () => {
       try {
-        await socketService.connect(user.id);
+        // Only connect if not already connected
+        if (!socketService.isSocketConnected()) {
+          await socketService.connect(user.id);
+        }
         
         // Set up call listeners
         socketService.onIncomingCall(handleIncomingCall);
@@ -83,7 +86,7 @@ const DoctorDashboard = () => {
       socketService.removeListener('call_ended');
       socketService.removeListener('call_failed');
     };
-  }, [user, fetchDoctorAppointments]);
+  }, [user]);
 
   const handleIncomingCall = (callData: any) => {
     console.log('📞 Doctor receiving incoming call:', callData);
