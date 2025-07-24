@@ -36,6 +36,8 @@ import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import DoctorChat from "./pages/doctor/DoctorChat";
 import ManageAvailability from "./pages/doctor/ManageAvailability";
 import DoctorProfile from "./pages/doctor/DoctorProfile";
+import DoctorAppointments from "./pages/doctor/DoctorAppointments";
+import DoctorReports from "./pages/doctor/DoctorReports";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -90,6 +92,8 @@ const App = () => (
                 <Route path="/doctor/chat" element={<DoctorChat />} />
                 <Route path="/doctor/availability" element={<ManageAvailability />} />
                 <Route path="/doctor/profile" element={<DoctorProfile />} />
+                <Route path="/doctor/appointments" element={<DoctorAppointments />} />
+                <Route path="/doctor/reports" element={<DoctorReports />} />
                 
                 {/* Admin Routes */}
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />

@@ -49,6 +49,25 @@ router.get('/user', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/appointments/doctor - Get doctor's appointments
+router.get('/doctor', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ error: 'Access denied. Doctor only.' });
+    }
+
+    const appointments = await Appointment.find({ doctorId: req.user.id })
+      .populate('doctorId', 'name specialty')
+      .populate('specialtyId', 'name')
+      .sort({ appointmentDate: 1 });
+    
+    res.json(appointments);
+  } catch (error) {
+    console.error('Error fetching doctor appointments:', error);
+    res.status(500).json({ error: 'Failed to fetch appointments' });
+  }
+});
+
 // POST /api/appointments - Create new appointment
 router.post('/', async (req, res) => {
   try {
@@ -125,11 +144,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/appointments/:id - Update appointment status (admin only)
+// PUT /api/appointments/:id - Update appointment status (admin and doctor can update)
 router.put('/:id', authenticate, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin only.' });
+    // Allow both admin and doctors to update appointments
+    if (req.user.role !== 'admin' && req.user.role !== 'doctor') {
+      return res.status(403).json({ error: 'Access denied. Admin or Doctor only.' });
     }
 
     const { status, notes } = req.body;
@@ -140,6 +160,11 @@ router.put('/:id', authenticate, async (req, res) => {
       
     if (!appointment) {
       return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    // If user is doctor, ensure they can only update their own appointments
+    if (req.user.role === 'doctor' && appointment.doctorId._id.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied. You can only update your own appointments.' });
     }
 
     const oldStatus = appointment.status;

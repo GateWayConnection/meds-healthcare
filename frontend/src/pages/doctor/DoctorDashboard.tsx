@@ -29,7 +29,7 @@ interface CallState {
 }
 
 const DoctorDashboard = () => {
-  const { appointments, updateAppointmentStatus, loading } = useAppointments();
+  const { appointments, updateAppointmentStatus, loading, fetchDoctorAppointments } = useAppointments();
   const { user } = useAuth();
   const [incomingCall, setIncomingCall] = useState<CallState | null>(null);
   const [missedCalls, setMissedCalls] = useState<MissedCall[]>([]);
@@ -53,7 +53,7 @@ const DoctorDashboard = () => {
 
   const uniquePatients = [...new Set(doctorAppointments.map(apt => apt.patientEmail))];
 
-  // Initialize socket connection for call notifications
+  // Initialize socket connection and fetch doctor appointments
   useEffect(() => {
     if (!user) return;
 
@@ -71,6 +71,11 @@ const DoctorDashboard = () => {
       }
     };
 
+    // Fetch doctor's appointments
+    if (user.role === 'doctor') {
+      fetchDoctorAppointments();
+    }
+
     initializeSocket();
 
     return () => {
@@ -78,7 +83,7 @@ const DoctorDashboard = () => {
       socketService.removeListener('call_ended');
       socketService.removeListener('call_failed');
     };
-  }, [user]);
+  }, [user, fetchDoctorAppointments]);
 
   const handleIncomingCall = (callData: any) => {
     console.log('📞 Doctor receiving incoming call:', callData);
@@ -352,15 +357,20 @@ const DoctorDashboard = () => {
                 <Button variant="outline" className="w-full" onClick={() => window.location.href = '/doctor/profile'}>
                   Update Profile
                 </Button>
-                <Button variant="outline" className="w-full" onClick={() => toast.info('Reports feature coming soon!')}>
+                <Button variant="outline" className="w-full" onClick={() => window.location.href = '/doctor/reports'}>
                   Generate Reports
                 </Button>
                 <Button 
                   variant="outline" 
                   className="w-full"
                   onClick={() => {
-                    const pendingCount = doctorAppointments.filter(apt => apt.status === 'pending').length;
-                    toast.info(`You have ${pendingCount} pending appointments to review`);
+                    const pendingAppointments = doctorAppointments.filter(apt => apt.status === 'pending');
+                    if (pendingAppointments.length > 0) {
+                      // Show detailed view of pending appointments
+                      window.location.href = '/doctor/appointments?status=pending';
+                    } else {
+                      toast.info('No pending appointments at this time');
+                    }
                   }}
                 >
                   View Pending Approvals ({doctorAppointments.filter(apt => apt.status === 'pending').length})

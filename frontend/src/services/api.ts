@@ -109,6 +109,23 @@ class ApiService {
     return this.put(`/admin/unverify-doctor/${id}`);
   }
 
+  // Doctor-specific endpoints
+  async getDoctorAppointments() {
+    return this.get('/appointments/doctor');
+  }
+
+  async updateDoctorProfile(data: any) {
+    return this.put('/doctors/profile', data);
+  }
+
+  async getDoctorProfile() {
+    return this.get('/doctors/profile');
+  }
+
+  async getDoctorReports() {
+    return this.get('/doctors/reports');
+  }
+
   // Appointments endpoints
   async getAppointments() {
     return this.get("/appointments");

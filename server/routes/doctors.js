@@ -232,4 +232,144 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 });
 
+// PUT /api/doctors/profile - Update doctor profile (doctor only)
+router.put('/profile', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ error: 'Access denied. Doctor only.' });
+    }
+
+    const doctor = await Doctor.findById(req.user.id);
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    const { 
+      name, 
+      email, 
+      experience, 
+      image, 
+      qualifications, 
+      availability, 
+      consultationFee 
+    } = req.body;
+
+    if (name !== undefined) doctor.name = name.trim();
+    if (email !== undefined) doctor.email = email.toLowerCase().trim();
+    if (experience !== undefined) doctor.experience = experience;
+    if (image !== undefined) doctor.image = image;
+    if (qualifications !== undefined) doctor.qualifications = qualifications;
+    if (availability !== undefined) doctor.availability = { ...doctor.availability, ...availability };
+    if (consultationFee !== undefined) doctor.consultationFee = consultationFee;
+
+    await doctor.save();
+
+    // Also update User collection
+    try {
+      const User = require('../models/User');
+      await User.findOneAndUpdate(
+        { email: doctor.email },
+        { 
+          name: doctor.name,
+          experience: doctor.experience,
+          bio: doctor.qualifications ? doctor.qualifications.join(', ') : ''
+        }
+      );
+    } catch (userUpdateError) {
+      console.error('Error updating user profile:', userUpdateError);
+    }
+    
+    const populatedDoctor = await Doctor.findById(doctor._id)
+      .populate('specialtyId', 'name description');
+    
+    res.json(populatedDoctor);
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+    console.error('Error updating doctor profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// GET /api/doctors/profile - Get doctor profile (doctor only)
+router.get('/profile', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ error: 'Access denied. Doctor only.' });
+    }
+
+    const doctor = await Doctor.findById(req.user.id)
+      .populate('specialtyId', 'name description');
+    
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+    
+    res.json(doctor);
+  } catch (error) {
+    console.error('Error fetching doctor profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// GET /api/doctors/reports - Generate doctor reports (doctor only)
+router.get('/reports', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ error: 'Access denied. Doctor only.' });
+    }
+
+    const Appointment = require('../models/Appointment');
+    
+    // Get all appointments for this doctor
+    const appointments = await Appointment.find({ doctorId: req.user.id })
+      .populate('specialtyId', 'name')
+      .sort({ appointmentDate: -1 });
+
+    // Calculate statistics
+    const totalAppointments = appointments.length;
+    const confirmedAppointments = appointments.filter(apt => apt.status === 'confirmed').length;
+    const completedAppointments = appointments.filter(apt => apt.status === 'completed').length;
+    const cancelledAppointments = appointments.filter(apt => apt.status === 'cancelled').length;
+    const pendingAppointments = appointments.filter(apt => apt.status === 'pending').length;
+
+    // Monthly stats
+    const thisMonth = new Date().getMonth();
+    const thisYear = new Date().getFullYear();
+    const thisMonthAppointments = appointments.filter(apt => {
+      const aptDate = new Date(apt.appointmentDate);
+      return aptDate.getMonth() === thisMonth && aptDate.getFullYear() === thisYear;
+    });
+
+    // Revenue calculation (assuming completed appointments)
+    const doctor = await Doctor.findById(req.user.id);
+    const estimatedRevenue = completedAppointments * (doctor?.consultationFee || 0);
+
+    const report = {
+      doctorInfo: {
+        name: doctor?.name,
+        specialty: doctor?.specialty,
+        consultationFee: doctor?.consultationFee
+      },
+      summary: {
+        totalAppointments,
+        confirmedAppointments,
+        completedAppointments,
+        cancelledAppointments,
+        pendingAppointments,
+        thisMonthTotal: thisMonthAppointments.length,
+        estimatedRevenue
+      },
+      recentAppointments: appointments.slice(0, 10),
+      generatedAt: new Date()
+    };
+    
+    res.json(report);
+  } catch (error) {
+    console.error('Error generating doctor reports:', error);
+    res.status(500).json({ error: 'Failed to generate reports' });
+  }
+});
+
 module.exports = router;

@@ -54,6 +54,19 @@ export const useAppointments = () => {
     }
   };
 
+  const fetchDoctorAppointments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiService.getDoctorAppointments();
+      setAppointments(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch doctor appointments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateAppointmentStatus = async (id: string, status: string) => {
     try {
       setError(null);
@@ -79,7 +92,7 @@ export const useAppointments = () => {
   };
 
   useEffect(() => {
-    fetchAppointments();
+    // Don't auto-fetch on mount - let components decide what to fetch
   }, []);
 
   return {
@@ -90,6 +103,7 @@ export const useAppointments = () => {
     updateAppointmentStatus,
     createAppointment,
     fetchUserAppointments,
+    fetchDoctorAppointments,
     refetch: fetchAppointments
   };
 };
