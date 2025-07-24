@@ -3,6 +3,7 @@ const router = express.Router();
 const Doctor = require('../models/Doctor');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
+const { fixDoctorVerification } = require('../scripts/fixDoctorVerification');
 
 // PUT /api/admin/verify-doctor/:id - Verify doctor and enable them
 router.put('/verify-doctor/:id', authenticate, async (req, res) => {
@@ -85,6 +86,25 @@ router.put('/unverify-doctor/:id', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error unverifying doctor:', error);
     res.status(500).json({ error: 'Failed to unverify doctor' });
+  }
+});
+
+// POST /api/admin/fix-doctor-verification - Fix all doctor verification issues
+router.post('/fix-doctor-verification', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admin only.' });
+    }
+
+    await fixDoctorVerification();
+    
+    res.json({ 
+      message: 'Doctor verification issues fixed successfully',
+      success: true 
+    });
+  } catch (error) {
+    console.error('Error fixing doctor verification:', error);
+    res.status(500).json({ error: 'Failed to fix doctor verification' });
   }
 });
 
