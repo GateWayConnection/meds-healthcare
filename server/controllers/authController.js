@@ -154,27 +154,62 @@ const register = async (req, res) => {
     });
   }
 };
-
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { emailOrPhone, password } = req.body;
 
-    if (!email || !password) {
+    if (
+      !emailOrPhone ||
+      !password ||
+      emailOrPhone.trim() === "" ||
+      password.trim() === ""
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required'
+        message: "Email/phone and password are required",
       });
     }
 
-    // Find user by email
-    const user = await User.findOne({ 
-      email: email.toLowerCase().trim() 
-    }).select('+password');
+    // Clean input
+    const cleanedInput = emailOrPhone.toLowerCase().trim();
+
+    // Determine if input is email or phone
+    const isEmail = cleanedInput.includes("@");
+    const isPhone = /^\+?[\d\s\-\(\)]+$/.test(cleanedInput.replace(/\s/g, ""));
+
+    if (!isEmail && !isPhone) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address or phone number",
+      });
+    }
+
+    // Build query object
+    let query = {};
+    if (isEmail) {
+      query.email = cleanedInput;
+    } else {
+      // Clean phone number (remove spaces, dashes, parentheses)
+      const cleanedPhone = cleanedInput.replace(/[\s\-\(\)]/g, "");
+      query.phone = cleanedPhone;
+    }
+
+    // Find user by email or phone
+    // Find user by email or phone
+    let user = await User.findOne(query).select("+password");
+console.log("user",user)
+    // If not found in User table, try Doctor table
+    if (!user) {
+      user = await Doctor.findOne(query).select("+password");
+console.log("doctor ",user)
+      // If found in Doctor table, set role to 'doctor' for consistency
+    
+    }
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: "Invalid credentials",
       });
     }
 
@@ -183,7 +218,7 @@ const login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: "Invalid credentials",
       });
     }
 
@@ -191,17 +226,11 @@ const login = async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Account is deactivated. Please contact support.'
+        message: "Account is deactivated. Please contact support.",
       });
     }
 
-    // Check if doctor is verified
-    if (user.role === 'doctor' && !user.verified) {
-      return res.status(401).json({
-        success: false,
-        message: 'Doctor account is pending verification. Please contact admin.'
-      });
-    }
+
 
     // Generate token
     const token = generateToken(user._id);
@@ -212,18 +241,17 @@ const login = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Login successful',
+      message: "Login successful",
       data: {
         user: userResponse,
-        token
-      }
+        token,
+      },
     });
-
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error during login'
+      message: "Internal server error during login",
     });
   }
 };

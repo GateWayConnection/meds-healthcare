@@ -62,6 +62,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/doctors - Create new doctor (admin only)
 router.post('/', authenticate, async (req, res) => {
+  console.log(req.body)
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin only.' });
@@ -104,7 +105,8 @@ router.post('/', authenticate, async (req, res) => {
       image: image || '/placeholder.svg',
       qualifications: qualifications || [],
       availability: availability || {},
-      consultationFee
+      consultationFee,
+      password
     });
 
     await doctor.save();

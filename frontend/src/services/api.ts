@@ -2,12 +2,12 @@ class ApiService {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    this.baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   }
 
   // Auth endpoints
   async login(credentials: { email: string; password: string }) {
-    return this.post('/auth/login', credentials);
+    return this.post("/auth/login", credentials);
   }
 
   async register(userData: {
@@ -22,16 +22,16 @@ class ApiService {
     experience?: number;
     bio?: string;
   }) {
-    return this.post('/auth/register', userData);
+    return this.post("/auth/register", userData);
   }
 
   // User management endpoints
   async getUsers() {
-    return this.get('/auth/users');
+    return this.get("/auth/users");
   }
 
   async createUser(userData: any) {
-    return this.post('/auth/users', userData);
+    return this.post("/auth/users", userData);
   }
 
   async updateUser(id: string, userData: any) {
@@ -44,24 +44,24 @@ class ApiService {
 
   // Stats endpoints
   async getStats() {
-    return this.get('/stats');
+    return this.get("/stats");
   }
 
   async updateStats(data: any) {
-    return this.put('/stats', data);
+    return this.put("/stats", data);
   }
 
   // Specialties endpoints
   async getSpecialties() {
-    return this.get('/specialties');
+    return this.get("/specialties");
   }
 
   async getAllSpecialties() {
-    return this.get('/specialties/all');
+    return this.get("/specialties/all");
   }
 
   async createSpecialty(data: any) {
-    return this.post('/specialties', data);
+    return this.post("/specialties", data);
   }
 
   async updateSpecialty(id: string, data: any) {
@@ -74,20 +74,22 @@ class ApiService {
 
   // Doctors endpoints
   async getDoctors(specialty?: string) {
-    const query = specialty ? `?specialty=${encodeURIComponent(specialty)}` : '';
+    const query = specialty
+      ? `?specialty=${encodeURIComponent(specialty)}`
+      : "";
     return this.get(`/doctors${query}`);
   }
 
   async getAllDoctors() {
-    return this.get('/doctors/all');
+    return this.get("/doctors/all");
   }
 
   async getDoctor(id: string) {
     return this.get(`/doctors/${id}`);
   }
 
-  async createDoctor(data: any) {
-    return this.post('/doctors', data);
+  async addDoctor(data: any) {
+    return this.post("/doctors", data);
   }
 
   async updateDoctor(id: string, data: any) {
@@ -109,15 +111,15 @@ class ApiService {
 
   // Appointments endpoints
   async getAppointments() {
-    return this.get('/appointments');
+    return this.get("/appointments");
   }
 
   async getUserAppointments() {
-    return this.get('/appointments/user');
+    return this.get("/appointments/user");
   }
 
   async createAppointment(data: any) {
-    return this.post('/appointments', data);
+    return this.post("/appointments", data);
   }
 
   async updateAppointment(id: string, data: any) {
@@ -130,11 +132,11 @@ class ApiService {
 
   // Courses endpoints
   async getCourses() {
-    return this.get('/courses');
+    return this.get("/courses");
   }
 
   async getAllCourses() {
-    return this.get('/courses/all');
+    return this.get("/courses/all");
   }
 
   async getCourse(id: string) {
@@ -142,7 +144,7 @@ class ApiService {
   }
 
   async createCourse(data: any) {
-    return this.post('/courses', data);
+    return this.post("/courses", data);
   }
 
   async updateCourse(id: string, data: any) {
@@ -155,15 +157,15 @@ class ApiService {
 
   // Blogs endpoints
   async getBlogs() {
-    return this.get('/blogs');
+    return this.get("/blogs");
   }
 
   async getAllBlogs() {
-    return this.get('/blogs/all');
+    return this.get("/blogs/all");
   }
 
   async getMyBlogs() {
-    return this.get('/blogs/my');
+    return this.get("/blogs/my");
   }
 
   async getBlog(id: string) {
@@ -171,7 +173,7 @@ class ApiService {
   }
 
   async createBlog(data: any) {
-    return this.post('/blogs', data);
+    return this.post("/blogs", data);
   }
 
   async updateBlog(id: string, data: any) {
@@ -184,11 +186,11 @@ class ApiService {
 
   // Activities endpoints
   async getActivities() {
-    return this.get('/activities');
+    return this.get("/activities");
   }
 
   async createActivity(data: any) {
-    return this.post('/activities', data);
+    return this.post("/activities", data);
   }
 
   async updateActivity(id: string, data: any) {
@@ -201,15 +203,15 @@ class ApiService {
 
   // Categories endpoints
   async getCategories() {
-    return this.get('/categories');
+    return this.get("/categories");
   }
 
   async getAllCategories() {
-    return this.get('/categories/all');
+    return this.get("/categories/all");
   }
 
   async createCategory(data: any) {
-    return this.post('/categories', data);
+    return this.post("/categories", data);
   }
 
   async updateCategory(id: string, data: any) {
@@ -222,11 +224,11 @@ class ApiService {
 
   // Testimonials endpoints
   async getTestimonials() {
-    return this.get('/testimonials');
+    return this.get("/testimonials");
   }
 
   async createTestimonial(data: any) {
-    return this.post('/testimonials', data);
+    return this.post("/testimonials", data);
   }
 
   async approveTestimonial(id: string) {
@@ -242,14 +244,14 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    
-    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
-    
-    const token = localStorage.getItem('token');
-    
+
+    console.log(`🌐 API Request: ${options.method || "GET"} ${url}`);
+
+    const token = localStorage.getItem("token");
+
     const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
@@ -258,60 +260,66 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         const errorData = await response.text();
         let errorMessage = `HTTP ${response.status}`;
-        
+
         try {
           const parsedError = JSON.parse(errorData);
-          errorMessage = parsedError.error || parsedError.message || errorMessage;
+          errorMessage =
+            parsedError.error || parsedError.message || errorMessage;
         } catch {
           errorMessage = errorData || errorMessage;
         }
-        
-        console.error(`❌ API Error: ${options.method || 'GET'} ${url}`, errorMessage);
+
+        console.error(
+          `❌ API Error: ${options.method || "GET"} ${url}`,
+          errorMessage
+        );
         throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      console.log(`✅ API Success: ${options.method || 'GET'} ${url}`);
+      console.log(`✅ API Success: ${options.method || "GET"} ${url}`);
       return data;
     } catch (error) {
       if (error instanceof Error) {
-        console.error(`❌ API Error: ${options.method || 'GET'} ${url}`, error);
-        
-        if (error.message.includes('Failed to fetch')) {
-          throw new Error('Network error. Please check your connection and try again.');
+        console.error(`❌ API Error: ${options.method || "GET"} ${url}`, error);
+
+        if (error.message.includes("Failed to fetch")) {
+          throw new Error(
+            "Network error. Please check your connection and try again."
+          );
         }
-        
+
         throw error;
       }
-      throw new Error('An unexpected error occurred');
+      throw new Error("An unexpected error occurred");
     }
   }
 
   // Generic methods
   async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    return this.request<T>(endpoint, { method: "GET" });
   }
 
   async post<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
   async put<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'PUT',
+      method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
   async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
 }
 

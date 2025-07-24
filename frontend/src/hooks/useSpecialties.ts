@@ -21,6 +21,7 @@ export const useSpecialties = () => {
       setError(null);
       // Use public endpoint instead of admin-only endpoint
       const data = await apiService.getSpecialties();
+      
       setSpecialties(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch specialties');

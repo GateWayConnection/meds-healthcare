@@ -38,7 +38,25 @@ export const useAdminDoctors = () => {
       setLoading(false);
     }
   };
+const addDoctor = async (doctorData: any) => {
+  try {
+    setError(null);
+    const newDoctor = await apiService.addDoctor(doctorData);
 
+    // Add to local state
+    setDoctors((prev) => [...prev, newDoctor]);
+
+    // If doctor is not active, add to pending list
+    if (!newDoctor.isActive) {
+      setPendingDoctors((prev) => [...prev, newDoctor]);
+    }
+
+    return newDoctor;
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Failed to add doctor");
+    throw err;
+  }
+};
   const verifyDoctor = async (doctorId: string) => {
     try {
       setError(null);
@@ -84,8 +102,9 @@ export const useAdminDoctors = () => {
     pendingDoctors,
     loading,
     error,
+    addDoctor,
     verifyDoctor,
     unverifyDoctor,
-    refetch: fetchDoctors
+    refetch: fetchDoctors,
   };
 };

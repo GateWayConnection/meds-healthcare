@@ -35,31 +35,35 @@ const Login = () => {
     
     try {
       // Use the new async login method
-      const success = await login(formData.identifier, formData.password, formData.role || undefined);
+      const result = await login(formData.identifier, formData.password, formData.role || undefined);
       
-      if (success) {
-        toast.success(t('login.loginSuccessful'));
-        
-        // Determine redirect based on role (will be set after successful login)
-        // We'll get the user's role from the context after login
-        setTimeout(() => {
-          // The role will be available in the user object now
-          const role = formData.role || 'patient'; // fallback
-          switch (role) {
-            case 'patient':
-              navigate('/patient/dashboard');
-              break;
-            case 'doctor':
-              navigate('/doctor/dashboard');
-              break;
-            case 'admin':
-              navigate('/admin/dashboard');
-              break;
-            default:
-              navigate('/');
-          }
-        }, 100);
-      }
+       if (result && typeof result === "object" && result.success) {
+         toast.success(t("login.loginSuccessful"));
+
+            console.log("Login successful!");
+            console.log("User data:", result.userData);
+         setTimeout(() => {
+           // The role will be available in the user object now
+           const role = result.userData.role || "patient"; 
+           console.log("role",role)
+           switch (role) {
+             case "patient":
+               navigate("/patient/dashboard");
+               break;
+             case "doctor":
+               navigate("/doctor/dashboard");
+               break;
+             case "admin":
+               navigate("/admin/dashboard");
+               break;
+             default:
+               navigate("/");
+           }
+         }, 100);
+       } else {
+         // Login failed
+         console.log("Login failed");
+       }
     } catch (error: any) {
       toast.error(error.message || t('login.loginError'));
     } finally {
@@ -121,26 +125,7 @@ const Login = () => {
                   />
                 </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <Label htmlFor="role" className="text-sm font-medium text-gray-700">
-                    {t('login.loginAs')} (Optional)
-                  </Label>
-                  <select
-                    id="role"
-                    value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                  >
-                    <option value="">{t('login.selectRole')}</option>
-                    <option value="patient">{t('login.patient')}</option>
-                    <option value="doctor">{t('login.doctor')}</option>
-                    <option value="admin">{t('login.admin')}</option>
-                  </select>
-                </motion.div>
+                
 
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
