@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState } from 'react'; 
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,10 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { UserPlus, User, UserCheck, Lock } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 
 const Register = () => {
   const { t } = useLanguage();
@@ -21,22 +18,13 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: '',
+    role: 'patient', // Default to patient
     phone: '',
-    specialty: '',
-    licenseNumber: '',
-    experience: '',
-    bio: '',
     dateOfBirth: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
-
-  const specialties = [
-    'Cardiology', 'Pediatrics', 'Dermatology', 'Neurology', 
-    'Orthopedics', 'Gynecology', 'Internal Medicine', 'Surgery'
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,9 +46,6 @@ const Register = () => {
       
       if (success) {
         toast.success(t('register.registrationSuccessful'));
-        if (formData.role === 'doctor') {
-          toast.info('Your doctor account requires verification. You will be contacted within 24-48 hours.');
-        }
         navigate('/login');
       }
     } catch (error: any) {
@@ -105,42 +90,12 @@ const Register = () => {
 
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Role Selection */}
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <Label htmlFor="role" className="text-sm font-medium text-gray-700">
-                    {t('register.registerAs')}
-                  </Label>
-                  <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder={t('register.selectRole')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="patient">
-                        <div className="flex items-center">
-                          <User className="w-4 h-4 mr-2" />
-                          {t('login.patient')}
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="doctor">
-                        <div className="flex items-center">
-                          <UserCheck className="w-4 h-4 mr-2" />
-                          {t('login.doctor')}
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </motion.div>
-
                 {/* Basic Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0.1 }}
                   >
                     <Label htmlFor="name">{t('register.fullName')}</Label>
                     <Input
@@ -157,7 +112,7 @@ const Register = () => {
                   <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0.1 }}
                   >
                     <Label htmlFor="phone">{t('register.phoneNumber')}</Label>
                     <Input
@@ -175,7 +130,7 @@ const Register = () => {
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
+                  transition={{ delay: 0.2 }}
                 >
                   <Label htmlFor="email">{t('register.emailAddress')}</Label>
                   <Input
@@ -189,99 +144,28 @@ const Register = () => {
                   />
                 </motion.div>
 
-                {formData.role === 'patient' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <Label htmlFor="dateOfBirth">{t('register.dateOfBirth')}</Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
-                      className="mt-1"
-                      required
-                    />
-                  </motion.div>
-                )}
-
-                {/* Doctor-specific fields */}
-                {formData.role === 'doctor' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="space-y-4 p-4 bg-blue-50 rounded-lg"
-                  >
-                    <h3 className="font-semibold text-gray-900">{t('register.professionalInfo')}</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="specialty">{t('register.medicalSpecialty')}</Label>
-                        <Select value={formData.specialty} onValueChange={(value) => setFormData({...formData, specialty: value})}>
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder={t('register.selectSpecialty')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {specialties.map((specialty) => (
-                              <SelectItem key={specialty} value={specialty}>
-                                {specialty}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="experience">{t('register.yearsOfExperience')}</Label>
-                        <Input
-                          id="experience"
-                          type="number"
-                          value={formData.experience}
-                          onChange={(e) => setFormData({...formData, experience: e.target.value})}
-                          className="mt-1"
-                          placeholder={t('register.experiencePlaceholder')}
-                          min="0"
-                          required={formData.role === 'doctor'}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="licenseNumber">{t('register.licenseNumber')}</Label>
-                      <Input
-                        id="licenseNumber"
-                        type="text"
-                        value={formData.licenseNumber}
-                        onChange={(e) => setFormData({...formData, licenseNumber: e.target.value})}
-                        className="mt-1"
-                        placeholder={t('register.licensePlaceholder')}
-                        required={formData.role === 'doctor'}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="bio">{t('register.professionalBio')}</Label>
-                      <Textarea
-                        id="bio"
-                        value={formData.bio}
-                        onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                        className="mt-1"
-                        placeholder={t('register.bioPlaceholder')}
-                        rows={3}
-                      />
-                    </div>
-                  </motion.div>
-                )}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <Label htmlFor="dateOfBirth">{t('register.dateOfBirth')}</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                    className="mt-1"
+                    required
+                  />
+                </motion.div>
 
                 {/* Password fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 }}
+                    transition={{ delay: 0.4 }}
                   >
                     <Label htmlFor="password">{t('register.password')}</Label>
                     <Input
@@ -298,7 +182,7 @@ const Register = () => {
                   <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 }}
+                    transition={{ delay: 0.4 }}
                   >
                     <Label htmlFor="confirmPassword">{t('register.confirmPassword')}</Label>
                     <Input
@@ -316,11 +200,11 @@ const Register = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
+                  transition={{ delay: 0.5 }}
                 >
                   <Button
                     type="submit"
-                    disabled={isLoading || !formData.role}
+                    disabled={isLoading}
                     className="w-full bg-gradient-to-r from-rose-600 to-teal-600 hover:from-rose-700 hover:to-teal-700 text-white py-3 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                   >
                     {isLoading ? (
@@ -339,7 +223,7 @@ const Register = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
+                transition={{ delay: 0.6 }}
                 className="mt-6 text-center"
               >
                 <p className="text-sm text-gray-600">
@@ -352,19 +236,6 @@ const Register = () => {
                   </Link>
                 </p>
               </motion.div>
-
-              {formData.role === 'doctor' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.8 }}
-                  className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg"
-                >
-                  <p className="text-xs text-yellow-800">
-                    <strong>{t('login.admin')}:</strong> {t('register.doctorNote')}
-                  </p>
-                </motion.div>
-              )}
             </CardContent>
           </Card>
         </motion.div>
