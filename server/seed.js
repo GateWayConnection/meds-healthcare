@@ -209,12 +209,12 @@ async function seed() {
     savedUsers
       .filter((u) => u.role === "doctor")
       .forEach((d, i) =>
-        console.log(`Doctor${i + 1}: ${d.email} | Password123!`)
+        console.log(`Doctor${i + 1}: ${d.email} ${d.phone} | Password123!`)
       );
     savedUsers
       .filter((u) => u.role === "patient")
       .forEach((p, i) =>
-        console.log(`Patient${i + 1}: ${p.email} | Password123!`)
+        console.log(`Patient${i + 1}: ${p.email} ${p.phone} | Password123!`)
       );
 
     process.exit(0);
